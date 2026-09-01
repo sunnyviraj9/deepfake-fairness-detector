@@ -1,0 +1,75 @@
+# ========================
+# Python
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ========================
+# Virtual Environments
+# ========================
+venv/
+.venv/
+ENV/
+env/
+
+# ========================
+# PyTorch Model Weights (large binary files)
+# ========================
+checkpoints/
+*.pt
+*.pth
+*.onnx
+
+# ========================
+# Data — Raw images (do NOT track actual image files)
+# ========================
+data/mock_dataset/images/
+data/raw/
+data/processed/
+images/
+AI-Face-downloaded/
+sample_images/
+
+# ========================
+# Large Dataset CSVs (30k+ rows, track only small sample)
+# ========================
+dataset/train_subset.csv
+dataset/test_subset.csv
+dataset/train_subset_10k.csv
+
+# ========================
+# Results & Logs (auto-generated, don't track)
+# ========================
+results/
+logs/
+runs/
+.wandb/
+benchmark_results/
+inference_results/
+
+# ========================
+# Build & Package
+# ========================
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+
+# ========================
+# IDE & OS
+# ========================
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+*.swp
+
+# ========================
+# Jupyter
+# ========================
+.ipynb_checkpoints/
+*.ipynb
