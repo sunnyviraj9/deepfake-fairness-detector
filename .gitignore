@@ -34,6 +34,12 @@ AI-Face-downloaded/
 sample_images/
 
 # ========================
+# Dataset image folders (too large for git — 200k+ images)
+# ========================
+dataset/imdb_wiki/
+dataset/StableDiffusion1.5_wiki_processed_process/
+
+# ========================
 # Large Dataset CSVs (30k+ rows, track only small sample)
 # ========================
 dataset/train_subset.csv

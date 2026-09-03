@@ -26,7 +26,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train Deepfake Detector with Algorithmic Fairness.")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
     parser.add_argument("--annotations", type=str, default="./data/mock_dataset/annotations.csv", help="Path to annotations CSV")
-    parser.add_argument("--data_root", type=str, default=None, help="Base directory for image paths")
+    parser.add_argument("--data_root", type=str, default=".", help="Base directory for image paths")
     parser.add_argument("--model_type", type=str, default="spatial", choices=["spatial", "frequency", "dual_stream"], help="Model architecture")
     parser.add_argument("--backbone", type=str, default="efficientnet_b0", help="Backbone name for timm")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")

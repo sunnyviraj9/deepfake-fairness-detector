@@ -259,7 +259,7 @@ def create_dataloaders(
     eval_transform = get_default_transforms(split="val", image_size=image_size)
 
     if root_dir is None:
-        root_dir = os.path.dirname(os.path.abspath(annotations_path))
+        root_dir = "."
 
     train_dataset = DeepfakeFairnessDataset(train_df, root_dir=root_dir, transform=train_transform)
     val_dataset = DeepfakeFairnessDataset(val_df, root_dir=root_dir, transform=eval_transform)
