@@ -87,10 +87,7 @@ class DeepfakeFairnessDataset(Dataset):
             if not os.path.exists(annotations):
                 raise FileNotFoundError(f"Annotations file not found at: {annotations}")
             self.df = pd.read_csv(annotations)
-            if root_dir is None:
-                self.root_dir = os.path.dirname(os.path.abspath(annotations))
-            else:
-                self.root_dir = root_dir
+            self.root_dir = root_dir if root_dir is not None else "."
         elif isinstance(annotations, pd.DataFrame):
             self.df = annotations.copy().reset_index(drop=True)
             self.root_dir = root_dir if root_dir is not None else ""
@@ -204,6 +201,8 @@ class DeepfakeFairnessDataset(Dataset):
 
 def create_dataloaders(
     annotations_path: str,
+    val_annotations_path: Optional[str] = None,
+    test_annotations_path: Optional[str] = None,
     root_dir: Optional[str] = None,
     batch_size: int = 32,
     num_workers: int = 4,
@@ -214,46 +213,66 @@ def create_dataloaders(
     balance_demographics: bool = False,
 ) -> Tuple[DataLoader, DataLoader, DataLoader, pd.DataFrame]:
     """
-    Splits dataset into Train / Validation / Test sets and returns standard PyTorch DataLoaders.
+    Creates standard PyTorch DataLoaders for Train / Validation / Test sets.
+    Supports either splitting a single annotations CSV or using explicit train and test CSV files.
 
     Args:
-        annotations_path: Path to annotations.csv.
+        annotations_path: Path to training annotations.csv.
+        val_annotations_path: Optional path to validation annotations CSV.
+        test_annotations_path: Optional path to test annotations CSV.
         root_dir: Optional base image directory.
         batch_size: DataLoader batch size.
         num_workers: Number of DataLoader worker processes.
         image_size: Target image resolution.
-        val_split: Fraction of dataset for validation.
-        test_split: Fraction of dataset for test.
+        val_split: Fraction of dataset for validation (used only if separate val CSV is not provided).
+        test_split: Fraction of dataset for test (used only if separate test CSV is not provided).
         seed: Random seed for reproducible splitting.
         balance_demographics: If True, uses WeightedRandomSampler for train loader to balance subgroups.
 
     Returns:
         (train_loader, val_loader, test_loader, full_df)
     """
-    df = pd.read_csv(annotations_path)
     np.random.seed(seed)
+    df = pd.read_csv(annotations_path)
 
-    # Normalize demographic attributes and generate subgroup keys
-    df["gender"] = df["gender"].astype(str).str.strip().str.capitalize()
-    df["skin_tone"] = pd.to_numeric(df["skin_tone"], errors="coerce").fillna(1).clip(1, 10).astype(int)
-    df["skin_tone_group"] = df["skin_tone"].map(lambda st: MST_GROUPS.get(st, "Unknown"))
-    df["subgroup"] = df["gender"] + "_MST_" + df["skin_tone"].astype(str)
+    # Check for auto-detection of test CSV if not specified and train_25k or similar is used
+    if val_annotations_path is None:
+        candidate_test = os.path.join(os.path.dirname(annotations_path), "test_5k.csv")
+        if not os.path.exists(candidate_test):
+            candidate_test = os.path.join(os.path.dirname(annotations_path), "test_15k.csv")
+        if os.path.exists(candidate_test) and ("train" in os.path.basename(annotations_path)):
+            val_annotations_path = candidate_test
 
-    # Perform stratified split by intersectional subgroup + target
-    df["strat_key"] = df["subgroup"] + "_" + df["target"].astype(str)
-    
-    # Shuffle
-    shuffled_indices = np.random.permutation(len(df))
-    shuffled_df = df.iloc[shuffled_indices].reset_index(drop=True)
+    if val_annotations_path is not None and os.path.exists(val_annotations_path):
+        # Use 100% of annotations_path for training
+        train_df = df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
+        val_df = pd.read_csv(val_annotations_path).sample(frac=1.0, random_state=seed).reset_index(drop=True)
+        
+        if test_annotations_path is not None and os.path.exists(test_annotations_path):
+            test_df = pd.read_csv(test_annotations_path).sample(frac=1.0, random_state=seed).reset_index(drop=True)
+        else:
+            test_df = val_df.copy()
+        
+        shuffled_df = train_df
+    else:
+        # Normalize demographic attributes and generate subgroup keys
+        df["gender"] = df["gender"].astype(str).str.strip().str.capitalize()
+        df["skin_tone"] = pd.to_numeric(df["skin_tone"], errors="coerce").fillna(1).clip(1, 10).astype(int)
+        df["skin_tone_group"] = df["skin_tone"].map(lambda st: MST_GROUPS.get(st, "Unknown"))
+        df["subgroup"] = df["gender"] + "_MST_" + df["skin_tone"].astype(str)
 
-    n_total = len(shuffled_df)
-    n_test = int(n_total * test_split)
-    n_val = int(n_total * val_split)
-    n_train = n_total - n_test - n_val
+        # Shuffle
+        shuffled_indices = np.random.permutation(len(df))
+        shuffled_df = df.iloc[shuffled_indices].reset_index(drop=True)
 
-    train_df = shuffled_df.iloc[:n_train].reset_index(drop=True)
-    val_df = shuffled_df.iloc[n_train : n_train + n_val].reset_index(drop=True)
-    test_df = shuffled_df.iloc[n_train + n_val :].reset_index(drop=True)
+        n_total = len(shuffled_df)
+        n_test = int(n_total * test_split)
+        n_val = int(n_total * val_split)
+        n_train = n_total - n_test - n_val
+
+        train_df = shuffled_df.iloc[:n_train].reset_index(drop=True)
+        val_df = shuffled_df.iloc[n_train : n_train + n_val].reset_index(drop=True)
+        test_df = shuffled_df.iloc[n_train + n_val :].reset_index(drop=True)
 
     train_transform = get_default_transforms(split="train", image_size=image_size)
     eval_transform = get_default_transforms(split="val", image_size=image_size)
@@ -267,9 +286,9 @@ def create_dataloaders(
 
     sampler = None
     shuffle = True
-    if balance_demographics and len(train_df) > 0:
-        subgroup_counts = train_df["subgroup"].value_counts()
-        weights = train_df["subgroup"].map(lambda sg: 1.0 / max(subgroup_counts.get(sg, 1), 1)).values.astype(np.float64).copy()
+    if balance_demographics and len(train_dataset.df) > 0:
+        subgroup_counts = train_dataset.df["subgroup"].value_counts()
+        weights = train_dataset.df["subgroup"].map(lambda sg: 1.0 / max(subgroup_counts.get(sg, 1), 1)).values.astype(np.float64).copy()
         sampler = WeightedRandomSampler(weights=torch.from_numpy(weights), num_samples=len(weights), replacement=True)
         shuffle = False
 
@@ -298,4 +317,4 @@ def create_dataloaders(
         pin_memory=torch.cuda.is_available(),
     )
 
-    return train_loader, val_loader, test_loader, shuffled_df
+    return train_loader, val_loader, test_loader, train_dataset.df

@@ -1,7 +1,7 @@
 # Default Configuration for Deepfake Detector & Fairness Benchmark
 
 # Dataset & Data Paths
-annotations: "./data/mock_dataset/annotations.csv"
+annotations: "./dataset/train_25k.csv"
 data_root: null
 image_size: 224
 batch_size: 16

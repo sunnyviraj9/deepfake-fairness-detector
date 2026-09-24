@@ -1,13 +1,16 @@
-"""
-Dual-Stream Spatial and Frequency Multi-Modal Deepfake Detector.
-Fuses RGB spatial texture features with 2D FFT spectral signatures.
-"""
-
+import os
+import sys
 from typing import Optional
 import torch
 import torch.nn as nn
-from models.spatial_detector import SpatialDetector
-from models.frequency_detector import FrequencyDetector
+
+try:
+    from models.spatial_detector import SpatialDetector
+    from models.frequency_detector import FrequencyDetector
+except ModuleNotFoundError:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    from models.spatial_detector import SpatialDetector
+    from models.frequency_detector import FrequencyDetector
 
 
 class DualStreamDetector(nn.Module):

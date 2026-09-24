@@ -25,7 +25,8 @@ from utils.metrics import FairnessAuditor, compute_binary_metrics
 def parse_args():
     parser = argparse.ArgumentParser(description="Train Deepfake Detector with Algorithmic Fairness.")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
-    parser.add_argument("--annotations", type=str, default="./data/mock_dataset/annotations.csv", help="Path to annotations CSV")
+    parser.add_argument("--annotations", type=str, default="./dataset/train_25k.csv", help="Path to training annotations CSV")
+    parser.add_argument("--val_annotations", type=str, default=None, help="Path to validation/test annotations CSV (optional)")
     parser.add_argument("--data_root", type=str, default=".", help="Base directory for image paths")
     parser.add_argument("--model_type", type=str, default="spatial", choices=["spatial", "frequency", "dual_stream"], help="Model architecture")
     parser.add_argument("--backbone", type=str, default="efficientnet_b0", help="Backbone name for timm")
@@ -176,6 +177,7 @@ def main():
     # 1. Create DataLoaders
     train_loader, val_loader, test_loader, full_df = create_dataloaders(
         annotations_path=args.annotations,
+        val_annotations_path=args.val_annotations,
         root_dir=args.data_root,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
@@ -183,7 +185,7 @@ def main():
         balance_demographics=args.mitigate_bias,
         seed=args.seed,
     )
-    print(f"Data splits -> Train: {len(train_loader.dataset)}, Val: {len(val_loader.dataset)}, Test: {len(test_loader.dataset)}")
+    print(f"Data splits -> Train (Entire): {len(train_loader.dataset)}, Val: {len(val_loader.dataset)}, Test: {len(test_loader.dataset)}")
 
     # 2. Build Model
     model = build_model(

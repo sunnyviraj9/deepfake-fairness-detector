@@ -23,7 +23,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate Deepfake Detector with Algorithmic Fairness Audit.")
     parser.add_argument("--model_path", type=str, required=True, help="Path to trained model checkpoint (.pt)")
     parser.add_argument("--annotations", type=str, default="./data/mock_dataset/annotations.csv", help="Path to evaluation annotations CSV")
-    parser.add_argument("--data_root", type=str, default=None, help="Base directory for image files")
+    parser.add_argument("--data_root", type=str, default=".", help="Base directory for image files")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size for evaluation")
     parser.add_argument("--image_size", type=int, default=224, help="Image resolution")
     parser.add_argument("--threshold", type=float, default=0.5, help="Decision threshold for binary classification")

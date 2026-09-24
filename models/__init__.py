@@ -1,12 +1,17 @@
-"""
-Model architectures for Deepfake Detection.
-"""
-
+import os
+import sys
 from typing import Optional
 import torch.nn as nn
-from models.spatial_detector import SpatialDetector
-from models.frequency_detector import FrequencyDetector
-from models.dual_stream_detector import DualStreamDetector
+
+try:
+    from models.spatial_detector import SpatialDetector
+    from models.frequency_detector import FrequencyDetector
+    from models.dual_stream_detector import DualStreamDetector
+except ModuleNotFoundError:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    from models.spatial_detector import SpatialDetector
+    from models.frequency_detector import FrequencyDetector
+    from models.dual_stream_detector import DualStreamDetector
 
 
 def build_model(
@@ -65,3 +70,8 @@ __all__ = [
     "DualStreamDetector",
     "build_model",
 ]
+
+if __name__ == "__main__":
+    print("Testing models/__init__.py...")
+    m = build_model("spatial", backbone="efficientnet_b0", pretrained=False)
+    print(f"Successfully built model: {m.__class__.__name__}")
