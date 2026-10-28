@@ -184,33 +184,97 @@ function loadPreset(key) {
   const img = document.getElementById('orig-img');
   if (!img) return;
   img.src = p.url;
-  img.onload = () => { showVizGrid(); renderGradCAM(img); renderFFT(img); refreshBanner(); dState.loaded = true; };
+  img.onload = () => {
+    showVizGrid();       // ensures viz-grid is visible, upload-zone hidden
+    renderGradCAM(img);
+    renderFFT(img);
+    refreshBanner();
+    dState.loaded = true;
+  };
+  img.onerror = () => console.warn('Preset image failed to load:', p.url);
 }
 
 function bindUpload() {
   const fi = document.getElementById('file-input');
+  if (!fi) return;
+
+  // Single change handler — fires after the user picks a file
+  fi.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) {
+      handleFile(f);
+      // Reset so the same file can be re-uploaded if needed
+      fi.value = '';
+    }
+  });
+
+  // Helper: open the file picker (single call, no duplicates)
+  function openPicker(e) {
+    // Prevent any parent handlers from also calling .click()
+    e.stopPropagation();
+    fi.click();
+  }
+
+  // Drop zone — click, keyboard, dragover, drop
   const dz = document.getElementById('upload-zone');
-  if (fi) fi.addEventListener('change', e => { const f = e.target.files[0]; if (f) handleFile(f); });
   if (dz) {
-    dz.addEventListener('click', () => fi?.click());
-    dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor='var(--blue)'; dz.style.background='var(--blue-lt)'; });
-    dz.addEventListener('dragleave', () => { dz.style.borderColor=''; dz.style.background=''; });
-    dz.addEventListener('drop', e => {
-      e.preventDefault(); dz.style.borderColor=''; dz.style.background='';
+    dz.addEventListener('click',    openPicker);
+    dz.addEventListener('keydown',  e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.click(); } });
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--blue)'; dz.style.background = 'var(--blue-lt)'; });
+    dz.addEventListener('dragleave',() => { dz.style.borderColor = ''; dz.style.background = ''; });
+    dz.addEventListener('drop',     e => {
+      e.preventDefault(); dz.style.borderColor = ''; dz.style.background = '';
       const f = e.dataTransfer.files[0];
       if (f && f.type.startsWith('image/')) handleFile(f);
     });
   }
+
+  // Sidebar "Choose File" button
+  const btnSidebar = document.getElementById('upload-btn-sidebar');
+  if (btnSidebar) btnSidebar.addEventListener('click', openPicker);
+
+  // Header "Upload" button (inside card header)
+  const btnHeader = document.getElementById('upload-btn-header');
+  if (btnHeader) btnHeader.addEventListener('click', openPicker);
 }
 
 function handleFile(file) {
+  // Show loading state on the drop zone
+  const dz = document.getElementById('upload-zone');
+  if (dz) {
+    dz.innerHTML = '<div class="upload-zone__icon">⏳</div><p class="upload-zone__title">Processing image…</p>';
+  }
+
   const reader = new FileReader();
+  reader.onerror = () => {
+    if (dz) {
+      dz.innerHTML = '<div class="upload-zone__icon">❌</div><p class="upload-zone__title">Could not read file. Try a JPG or PNG.</p>';
+      dz.style.display = '';
+    }
+  };
   reader.onload = ev => {
-    dState.pFake = 0.35 + Math.random() * 0.55;
+    // Assign a simulated pFake score (no live inference in the browser)
+    dState.pFake = parseFloat((0.35 + Math.random() * 0.55).toFixed(3));
+
     const img = document.getElementById('orig-img');
     if (!img) return;
+
+    img.onerror = () => {
+      if (dz) {
+        dz.innerHTML = '<div class="upload-zone__icon">❌</div><p class="upload-zone__title">Could not display image.</p>';
+        dz.style.display = '';
+      }
+    };
+
+    img.onload = () => {
+      showVizGrid();
+      renderGradCAM(img);
+      renderFFT(img);
+      refreshBanner();
+      dState.loaded = true;
+    };
+
     img.src = ev.target.result;
-    img.onload = () => { showVizGrid(); renderGradCAM(img); renderFFT(img); refreshBanner(); dState.loaded = true; };
   };
   reader.readAsDataURL(file);
 }
@@ -218,8 +282,9 @@ function handleFile(file) {
 function showVizGrid() {
   const dz = document.getElementById('upload-zone');
   const vg = document.getElementById('viz-grid');
+  // Hide drop zone, show visualiser grid
   if (dz) dz.style.display = 'none';
-  if (vg) vg.style.display = 'grid';
+  if (vg) { vg.style.display = 'grid'; vg.style.removeProperty('display'); vg.style.display = 'grid'; }
 }
 
 function refreshBanner() {

@@ -96,8 +96,10 @@
         </div>
 
         <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📁 Upload Image</div>
-        <button class="btn btn--outline btn--sm" onclick="document.getElementById('file-input').click()">Choose File</button>
-        <input type="file" id="file-input" accept="image/*" class="sr-only" />
+        <button class="btn btn--outline btn--sm" id="upload-btn-sidebar">Choose File</button>
+        <!-- position:absolute + opacity:0 lets programmatic .click() work in all browsers -->
+        <input type="file" id="file-input" accept="image/*"
+               style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;" />
 
         <hr class="divider" />
         <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📍 Subgroup Context</div>
@@ -158,13 +160,13 @@
           <div class="card__title">🖼️ Multimodal XAI Outputs</div>
           <div style="display:flex;gap:.5rem;align-items:center;">
             <span class="badge badge--gray">224 × 224 px</span>
-            <button class="btn btn--outline btn--sm" onclick="document.getElementById('file-input').click()">📁 Upload</button>
+            <button class="btn btn--outline btn--sm" id="upload-btn-header">📁 Upload</button>
           </div>
         </div>
 
-        <!-- Drop zone -->
+        <!-- Drop zone — click/drag handled entirely by bindUpload() in app.js -->
         <div class="upload-zone" id="upload-zone" role="button" tabindex="0"
-             onkeydown="if(event.key==='Enter')document.getElementById('file-input').click()">
+             aria-label="Drop a face image here or press Enter to browse">
           <div class="upload-zone__icon">📤</div>
           <p class="upload-zone__title">Drop a face image here, or click to upload</p>
           <p class="upload-zone__sub">PNG / JPG · resized to 224 × 224 for inference</p>
