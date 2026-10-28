@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FairShield XAI — About</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+
+<!-- ════════ PAGE HEADER ════════ -->
+<div class="page-header">
+  <div class="page-header__inner">
+    <p class="page-header__eyebrow">ℹ️ Model Card & Methodology</p>
+    <h1 class="page-header__title">About FairShield XAI</h1>
+    <p class="page-header__desc">
+      Research motivation, dataset provenance, training methodology, fairness framework,
+      and the full technical narrative behind FairShield XAI.
+    </p>
+    <div class="page-header__meta">
+      <span class="badge badge--blue">CVPR 2025 Framework</span>
+      <span class="badge badge--gray">IMDB-Wiki + SD 1.5</span>
+      <span class="badge badge--green">MIT License</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-body">
+
+  <!-- Two-column: research narrative + model card -->
+  <div class="two-col-eq mb-8">
+
+    <!-- Research motivation -->
+    <div class="card">
+      <div class="card__title" style="margin-bottom:var(--sp-5);">🎯 Research Motivation</div>
+      <p style="font-size:.9rem;color:var(--txt-2);line-height:1.8;margin-bottom:var(--sp-4);">
+        Deepfake detection has achieved remarkable accuracy on balanced benchmarks, but
+        real-world deployment surfaces a critical problem: models trained on demographically
+        skewed data produce systematically higher false positive rates on darker-skinned faces.
+        A real person wrongly flagged as a deepfake can face serious consequences in
+        identity verification, content moderation, and media authentication.
+      </p>
+      <p style="font-size:.9rem;color:var(--txt-2);line-height:1.8;margin-bottom:var(--sp-4);">
+        FairShield XAI is inspired by the CVPR 2025 AI-Face FairnessBench paper, which
+        first systematically evaluated deepfake detectors across the Monk Skin Tone Scale.
+        Our work extends this by integrating fairness mitigation directly into the training
+        loop via equalized odds regularisation, and by making the fairness gap a primary
+        optimisation target alongside AUC.
+      </p>
+      <p style="font-size:.9rem;color:var(--txt-2);line-height:1.8;">
+        The result is a model that achieves <strong>AUC 0.9987</strong> and
+        <strong>Monk F_EO = 0.0515</strong> — a 71.4% reduction in demographic disparity
+        from the unmitigated baseline — while maintaining near-perfect fake detection recall.
+      </p>
+    </div>
+
+    <!-- Model card -->
+    <div class="card">
+      <div class="card__title" style="margin-bottom:var(--sp-5);">📋 Model Card</div>
+      <table class="tbl">
+        <tbody>
+          <tr><td style="font-weight:700;width:42%;">Model name</td><td>FairShield XAI SpatialDetector</td></tr>
+          <tr><td style="font-weight:700;">Architecture</td><td>EfficientNet-B0 + custom head</td></tr>
+          <tr><td style="font-weight:700;">Training data</td><td>25,000 samples (IMDB-Wiki real + SD 1.5 fake)</td></tr>
+          <tr><td style="font-weight:700;">Evaluation data</td><td>5,000 samples (held-out test split)</td></tr>
+          <tr><td style="font-weight:700;">Training epochs</td><td>3 · Batch 64 · AdamW lr=1e-4</td></tr>
+          <tr><td style="font-weight:700;">Loss function</td><td>Equalized Odds BCE (λ=0.5)</td></tr>
+          <tr><td style="font-weight:700;">Val AUC</td><td>0.9987</td></tr>
+          <tr><td style="font-weight:700;">Accuracy</td><td>98.60%</td></tr>
+          <tr><td style="font-weight:700;">EER</td><td>1.36%</td></tr>
+          <tr><td style="font-weight:700;">Monk F_EO</td><td>0.0515 (MST 1–10)</td></tr>
+          <tr><td style="font-weight:700;">Gender F_EO</td><td>0.0053</td></tr>
+          <tr><td style="font-weight:700;">Optimal threshold</td><td>0.1463 (FPR 4.76%, TPR 99.88%)</td></tr>
+          <tr><td style="font-weight:700;">Checkpoint</td><td>checkpoints/best_model.pt</td></tr>
+          <tr><td style="font-weight:700;">License</td><td>MIT</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Dataset section -->
+  <div class="card mb-8">
+    <div class="card__head">
+      <div class="card__title">🗄️ Dataset & Data Pipeline</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--sp-5);">
+      <div>
+        <div style="font-weight:800;margin-bottom:var(--sp-2);">Real Faces — IMDB-Wiki</div>
+        <p style="font-size:.85rem;color:var(--txt-2);line-height:1.7;">
+          62k+ celebrity face images from the IMDB-Wiki dataset. Files stored under
+          <code>dataset/imdb_wiki/imdb/</code> and <code>dataset/imdb_wiki/wiki/</code>
+          in 100 subdirectories (two-digit prefix). Original images are pre-cropped
+          face regions in JPEG format.
+        </p>
+        <div style="margin-top:var(--sp-3);"><span class="chip chip--green">Real label: target=0</span></div>
+      </div>
+      <div>
+        <div style="font-weight:800;margin-bottom:var(--sp-2);">Fake Faces — Stable Diffusion 1.5</div>
+        <p style="font-size:.85rem;color:var(--txt-2);line-height:1.7;">
+          Synthetic faces generated from IMDB-Wiki subject metadata using Stable Diffusion 1.5.
+          Stored under <code>dataset/StableDiffusion1.5_wiki_processed_process/</code>.
+          PNG format, same 100-subdir structure. Visually indistinguishable from real faces.
+        </p>
+        <div style="margin-top:var(--sp-3);"><span class="chip chip--red">Fake label: target=1</span></div>
+      </div>
+      <div>
+        <div style="font-weight:800;margin-bottom:var(--sp-2);">Demographic Auto-Labeling</div>
+        <p style="font-size:.85rem;color:var(--txt-2);line-height:1.7;">
+          <code>scripts/auto_annotate_demographics.py</code> extracts Lab L* channel
+          (centre crop) and maps median luminance to MST 1–10 via 9 calibrated breakpoints.
+          Gender uses a* channel heuristic. Hash-based fallback for unreadable images.
+          All 4 annotation CSVs contain columns: image_path, target, gender, skin_tone, age.
+        </p>
+        <div style="margin-top:var(--sp-3);">
+          <span class="chip chip--blue">skin_tone: 1-10</span>
+          <span class="chip chip--gray" style="margin-left:.3rem;">gender: Male/Female</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Training pipeline timeline -->
+  <div class="card mb-8">
+    <div class="card__head">
+      <div class="card__title">⚙️ Training Pipeline</div>
+    </div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-item__title">1. Data Loading — DeepfakeFairnessDataset</div>
+        <div class="timeline-item__desc">
+          Custom PyTorch Dataset reads from CSV annotations.
+          Train transforms: Resize(224) → RandomHorizontalFlip → RandomRotation(10°) → ColorJitter → ToTensor → Normalize.
+          WeightedRandomSampler assigns weight=1/subgroup_count per sample when mitigate_bias=True.
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-item__title">2. Model Construction — build_model()</div>
+        <div class="timeline-item__desc">
+          Factory function in models/__init__.py dispatches to SpatialDetector, FrequencyDetector, or DualStreamDetector.
+          timm backbone initialised with pretrained=True (ImageNet). Custom head uses Xavier uniform init.
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-item__title">3. Fairness Loss — EqualizedOddsRegularizedLoss</div>
+        <div class="timeline-item__desc">
+          Primary: BCEWithLogitsLoss. Penalty: λ × (Var(soft_FPR_g) + Var(soft_TPR_g)) where g iterates
+          unique skin tone groups in the batch. Differentiable via sigmoid surrogates. λ=0.5 by default.
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-item__title">4. Optimisation — AdamW + CosineAnnealingLR</div>
+        <div class="timeline-item__desc">
+          AdamW with lr=1e-4, weight_decay=0.01. Gradient clipping at max_norm=1.0.
+          CosineAnnealingLR scheduler (T_max=epochs, eta_min=1e-6).
+          Best checkpoint saved on val AUC improvement (includes monk_F_EO, optimal_threshold).
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-item__title">5. Threshold Calibration — find_optimal_threshold()</div>
+        <div class="timeline-item__desc">
+          Post-training: walks the ROC curve selecting the highest TPR point with FPR ≤ 5%.
+          Falls back to EER threshold if no point meets the budget. Result stored in checkpoint
+          as optimal_threshold and read dynamically by app.py and evaluate.py.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tech stack -->
+  <div class="two-col-eq mb-8">
+    <div class="card">
+      <div class="card__title" style="margin-bottom:var(--sp-4);">🛠️ Technology Stack</div>
+      <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
+        <div>
+          <div style="font-size:.78rem;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--sp-2);">Deep Learning</div>
+          <div class="tech-pills">
+            <span class="tech-pill">PyTorch 2.14</span>
+            <span class="tech-pill">torchvision 0.29</span>
+            <span class="tech-pill">timm 1.0.29</span>
+            <span class="tech-pill">EfficientNet-B0</span>
+            <span class="tech-pill">ResNet-34</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.78rem;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--sp-2);">Data & ML</div>
+          <div class="tech-pills">
+            <span class="tech-pill">scikit-learn 1.9</span>
+            <span class="tech-pill">pandas 3.0</span>
+            <span class="tech-pill">numpy 2.5</span>
+            <span class="tech-pill">opencv-python</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.78rem;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--sp-2);">Visualisation & Web</div>
+          <div class="tech-pills">
+            <span class="tech-pill">Streamlit 1.63</span>
+            <span class="tech-pill">matplotlib 3.11</span>
+            <span class="tech-pill">seaborn 0.13</span>
+            <span class="tech-pill">Chart.js 4.4</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.78rem;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--sp-2);">DevOps</div>
+          <div class="tech-pills">
+            <span class="tech-pill">Python 3.12</span>
+            <span class="tech-pill">Git / GitHub</span>
+            <span class="tech-pill">Windows (CPU)</span>
+            <span class="tech-pill">OneDrive sync</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__title" style="margin-bottom:var(--sp-4);">📁 Project Structure</div>
+      <div style="font-family:var(--font-mono);font-size:.78rem;color:var(--txt-2);line-height:1.9;background:var(--surface-2);padding:var(--sp-4);border-radius:var(--r-md);border:1px solid var(--border);">
+        capstone_new/<br>
+        ├── <span style="color:var(--blue);">app.py</span>          — Streamlit web app<br>
+        ├── <span style="color:var(--blue);">train.py</span>        — Training pipeline<br>
+        ├── <span style="color:var(--blue);">evaluate.py</span>     — Fairness audit<br>
+        ├── <span style="color:var(--blue);">inference.py</span>    — Batch inference<br>
+        ├── <span style="color:var(--blue);">benchmark.py</span>    — Arch comparison<br>
+        ├── <span style="color:var(--green);">index.html</span>      — Landing page<br>
+        ├── <span style="color:var(--green);">detector.html</span>   — XAI playground<br>
+        ├── <span style="color:var(--green);">fairness.html</span>   — Audit dashboard<br>
+        ├── <span style="color:var(--green);">benchmarks.html</span> — Comparison<br>
+        ├── <span style="color:var(--green);">about.html</span>      — Model card<br>
+        ├── models/          — Architecture code<br>
+        ├── utils/           — Dataset, metrics, loss<br>
+        ├── scripts/         — Auto-annotation<br>
+        ├── checkpoints/     — best_model.pt<br>
+        ├── results/         — Audit artifacts<br>
+        └── dataset/         — CSVs + images<br>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fairness framework -->
+  <div class="card mb-8">
+    <div class="card__head">
+      <div class="card__title">⚖️ Fairness Framework — CVPR 2025 AI-Face FairnessBench</div>
+    </div>
+    <p style="font-size:.9rem;color:var(--txt-2);line-height:1.8;margin-bottom:var(--sp-4);">
+      This project aligns with the evaluation protocol from the
+      <em>AI-Face FairnessBench</em> paper (CVPR 2025), which identified that commercial
+      and academic deepfake detectors exhibit systematic performance disparities across the
+      Monk Skin Tone Scale. Key metrics used:
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-5);">
+      <div style="padding:var(--sp-4);background:var(--surface-2);border-radius:var(--r-md);border:1px solid var(--border);">
+        <div style="font-weight:800;margin-bottom:var(--sp-2);">Equalized Odds Disparity (F_EO)</div>
+        <div style="font-family:var(--font-mono);font-size:.85rem;background:var(--surface);padding:var(--sp-3);border-radius:var(--r-sm);margin-bottom:var(--sp-2);">
+          F_EO = 0.5 × (ΔFPR + ΔTPR)
+        </div>
+        <p style="font-size:.82rem;color:var(--txt-2);line-height:1.65;">
+          ΔFPR = max(FPR_g) − min(FPR_g) across all subgroups g.
+          ΔTPR = max(TPR_g) − min(TPR_g). Lower F_EO = fairer model.
+          Our result: <strong>F_EO = 0.0515</strong> (MST 1–10).
+        </p>
+      </div>
+      <div style="padding:var(--sp-4);background:var(--surface-2);border-radius:var(--r-md);border:1px solid var(--border);">
+        <div style="font-weight:800;margin-bottom:var(--sp-2);">Monk Skin Tone Scale (MST 1–10)</div>
+        <div style="display:flex;gap:4px;margin-bottom:var(--sp-3);">
+          <div style="flex:1;height:18px;border-radius:3px;background:#f5dcc8;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#ecc8a4;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#dba87a;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#c98754;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#b86a35;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#9a5429;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#7d3e20;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#622e18;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#4c2011;"></div>
+          <div style="flex:1;height:18px;border-radius:3px;background:#371508;"></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--txt-2);line-height:1.65;">
+          A 10-point perceptual skin tone scale replacing the coarser Fitzpatrick scale.
+          Light (1–3), Medium (4–7), Dark (8–10). Used for intersectional subgroup analysis
+          combined with gender (20 total subgroups).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--r-xl);padding:var(--sp-10) var(--sp-8);text-align:center;color:#fff;">
+    <div style="font-size:1.8rem;font-weight:800;margin-bottom:var(--sp-3);">Ready to try it?</div>
+    <p style="color:rgba(255,255,255,.75);max-width:500px;margin:0 auto var(--sp-6);line-height:1.7;">
+      Upload a face image, explore Grad-CAM explanations, and see the 2D FFT spectrum — all live in the browser.
+    </p>
+    <div style="display:flex;justify-content:center;gap:var(--sp-3);flex-wrap:wrap;">
+      <a href="detector.html" class="btn btn--primary btn--lg">🔍 Open Detector</a>
+      <a href="fairness.html" class="btn btn--outline btn--lg" style="color:#fff;border-color:rgba(255,255,255,.3);">⚖️ View Fairness Audit</a>
+      <a href="https://github.com/sunnyviraj9/deepfake-fairness-detector" target="_blank" rel="noopener noreferrer"
+         class="btn btn--ghost btn--lg" style="color:rgba(255,255,255,.6);">GitHub ↗</a>
+    </div>
+  </div>
+
+</div>
+<div id="footer-mount"></div>
+</body>
+</html>

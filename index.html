@@ -3,66 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="FairShield XAI — Demographic-Aware Deepfake Detection with Explainable AI and Algorithmic Fairness Benchmarking (CVPR 2025)." />
-  <title>FairShield XAI — Deepfake Detection & Algorithmic Fairness</title>
-
-  <!-- Fonts -->
+  <meta name="description" content="FairShield XAI — Demographic-Aware Deepfake Detection with Explainable AI." />
+  <title>FairShield XAI — Home</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-
-  <!-- Stylesheet -->
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════════════════
-     NAVIGATION
-     ════════════════════════════════════════════════════════════════ -->
-<header>
-  <nav class="nav" role="navigation" aria-label="Main navigation">
-    <div class="nav__inner">
-      <a href="#hero" class="nav__brand" aria-label="FairShield XAI home">
-        <div class="nav__brand-icon" aria-hidden="true">🛡️</div>
-        FairShield XAI
-        <span class="badge badge--blue">CVPR '25 Bench</span>
-      </a>
+<!-- Shared nav injected here -->
+<div id="nav-mount"></div>
 
-      <ul class="nav__links" role="list">
-        <li><a href="#demo">Live Demo</a></li>
-        <li><a href="#fairness">Fairness Audit</a></li>
-        <li><a href="#benchmarks">Benchmarks</a></li>
-      </ul>
-
-      <div class="nav__cta">
-        <span class="badge badge--green">
-          <span aria-hidden="true">●</span> AUC&nbsp;0.9987
-        </span>
-        <a href="https://github.com/sunnyviraj9/deepfake-fairness-detector"
-           target="_blank" rel="noopener noreferrer"
-           class="btn btn--outline btn--sm">
-          GitHub ↗
-        </a>
-      </div>
-    </div>
-  </nav>
-</header>
-
-
-<!-- ════════════════════════════════════════════════════════════════
-     SECTION 1 — HERO
-     ════════════════════════════════════════════════════════════════ -->
-<section id="hero" class="hero" aria-labelledby="hero-title">
+<!-- ════════ HERO ════════ -->
+<section class="hero">
   <div class="hero__inner">
     <div class="hero__eyebrow">
       <span class="badge badge--blue">🔬 CVPR 2025 AI-Face FairnessBench</span>
       <span class="badge badge--gray">EfficientNet-B0 · Equalized Odds Loss</span>
     </div>
 
-    <h1 class="hero__title" id="hero-title">
+    <h1 class="hero__title">
       Demographic-Aware<br />
       <span class="highlight">Deepfake Detection</span><br />
       with Explainable AI
@@ -70,664 +33,172 @@
 
     <p class="hero__sub">
       FairShield XAI detects AI-generated faces with near-perfect accuracy while
-      auditing and mitigating demographic bias across the Monk Skin Tone Scale (MST 1–10)
-      and gender — making fairness a first-class metric alongside performance.
+      auditing and mitigating demographic bias across the Monk Skin Tone Scale
+      (MST 1–10) — making fairness a first-class metric.
     </p>
 
     <div class="hero__actions">
-      <a href="#demo" class="btn btn--primary">
-        🔍 Try Live Demo
+      <a href="detector.html" class="btn btn--primary btn--lg">
+        🚀 Get Started — Try Detector
       </a>
-      <a href="#fairness" class="btn btn--outline">
-        ⚖️ View Fairness Audit
+      <a href="fairness.html" class="btn btn--outline btn--lg">
+        ⚖️ Fairness Audit
       </a>
-      <a href="https://github.com/sunnyviraj9/deepfake-fairness-detector"
-         target="_blank" rel="noopener noreferrer"
-         class="btn btn--ghost">
-        📂 Source Code ↗
+      <a href="about.html" class="btn btn--ghost btn--lg">
+        ℹ️ Learn More
       </a>
     </div>
 
-    <!-- Key Metrics Strip -->
-    <div class="metrics-strip" role="region" aria-label="Key performance metrics">
+    <!-- KPI strip -->
+    <div class="metrics-strip">
       <div class="metric-tile">
         <div class="metric-tile__label">AUC — ROC</div>
-        <div class="metric-tile__value green mono">0.9987</div>
-        <div class="metric-tile__sub">5,000 sample test set</div>
+        <div class="metric-tile__value green">0.9987</div>
+        <div class="metric-tile__sub">5,000-sample test set</div>
       </div>
       <div class="metric-tile">
         <div class="metric-tile__label">Accuracy</div>
-        <div class="metric-tile__value green mono">98.60%</div>
+        <div class="metric-tile__value green">98.60%</div>
         <div class="metric-tile__sub">EfficientNet-B0 Spatial</div>
       </div>
       <div class="metric-tile">
-        <div class="metric-tile__label">Equalized Odds Gap (F_EO)</div>
-        <div class="metric-tile__value amber mono">0.0515</div>
-        <div class="metric-tile__sub">↓ 71.4% from unmitigated baseline</div>
+        <div class="metric-tile__label">Equalized Odds F_EO</div>
+        <div class="metric-tile__value amber">0.0515</div>
+        <div class="metric-tile__sub">↓ 71.4% from baseline</div>
       </div>
       <div class="metric-tile">
         <div class="metric-tile__label">Optimal Threshold T</div>
-        <div class="metric-tile__value blue mono">0.1463</div>
+        <div class="metric-tile__value blue">0.1463</div>
         <div class="metric-tile__sub">FPR 4.76% · TPR 99.88%</div>
       </div>
     </div>
   </div>
 </section>
 
-
-<!-- ════════════════════════════════════════════════════════════════
-     SECTION 2 — INTERACTIVE DEMO / XAI PLAYGROUND
-     ════════════════════════════════════════════════════════════════ -->
-<section id="demo" class="section" aria-labelledby="demo-title">
-  <div class="section__inner">
-
-    <header class="section__header">
-      <p class="section__eyebrow" aria-hidden="true">🔍 Live Playground</p>
-      <h2 class="section__title" id="demo-title">Interactive XAI Visualizer</h2>
-      <p class="section__desc">
-        Select a sample image, adjust the detection threshold, and explore spatial Grad-CAM
-        activations alongside 2D FFT frequency spectrum artefacts in real time.
-      </p>
-    </header>
-
-    <div class="demo-layout">
-
-      <!-- ── LEFT SIDEBAR ─────────────────────────────────────── -->
-      <aside aria-label="Inference controls">
-        <div class="card sidebar-card">
-
-          <!-- Model selector -->
-          <div class="form-group">
-            <label class="form-label" for="model-select">
-              Detector Architecture
-            </label>
-            <select id="model-select" aria-describedby="model-help">
-              <option value="spatial">SpatialDetector — EfficientNet-B0 ✅</option>
-              <option value="frequency">FrequencyDetector — ResNet-34 (2D-FFT)</option>
-              <option value="dual">DualStream — Gated Fusion (Projected Best)</option>
-            </select>
-            <small id="model-help" style="font-size:.72rem;color:var(--txt-3);margin-top:.3rem;display:block;">
-              ✅ = trained &amp; fully evaluated on this machine
-            </small>
-          </div>
-
-          <!-- Threshold slider -->
-          <div class="form-group">
-            <label class="form-label" for="thresh-slider">
-              Decision Threshold <span>(T = FPR-calibrated)</span>
-            </label>
-            <div class="slider-row">
-              <input type="range" id="thresh-slider"
-                     min="0.05" max="0.95" step="0.01" value="0.1463"
-                     aria-valuemin="0.05" aria-valuemax="0.95"
-                     aria-valuenow="0.1463" aria-label="Decision threshold" />
-              <span class="slider-badge" id="thresh-badge">0.15</span>
-            </div>
-            <small style="font-size:.72rem;color:var(--txt-3);margin-top:.3rem;display:block;">
-              Optimal: <strong>0.1463</strong> → FPR 4.76% · TPR 99.88%
-            </small>
-          </div>
-
-          <hr class="divider" />
-
-          <!-- MST Selector -->
-          <div class="form-group">
-            <label class="form-label" for="mst-slider">
-              Monk Skin Tone <span>(MST 1–10)</span>
-            </label>
-            <div class="slider-row">
-              <input type="range" id="mst-slider"
-                     min="1" max="10" step="1" value="5"
-                     aria-label="Monk Skin Tone scale" />
-              <span class="slider-badge" id="mst-badge">MST 5</span>
-            </div>
-            <!-- 10 clickable colour swatches -->
-            <div class="mst-swatches" id="mst-swatches" role="group" aria-label="Monk Skin Tone swatches"></div>
-          </div>
-
-          <!-- Gender dropdown -->
-          <div class="form-group">
-            <label class="form-label" for="gender-select">Gender Annotation</label>
-            <select id="gender-select">
-              <option value="Female">Female</option>
-              <option value="Male">Male</option>
-              <option value="Unspecified">Unspecified</option>
-            </select>
-          </div>
-
-          <hr class="divider" />
-
-          <!-- Presets -->
-          <div class="form-group">
-            <p class="form-label">Sample Presets</p>
-            <div class="preset-group">
-              <button class="btn btn--outline btn--sm" data-preset="sd15">SD 1.5 (Fake)</button>
-              <button class="btn btn--outline btn--sm" data-preset="imdb">IMDB (Real)</button>
-              <button class="btn btn--outline btn--sm" data-preset="sg3">StyleGAN3 (Fake)</button>
-            </div>
-          </div>
-
-          <!-- Upload -->
-          <div class="form-group">
-            <p class="form-label">Upload Your Own</p>
-            <button class="btn btn--outline btn--sm"
-                    onclick="document.getElementById('file-input').click()"
-                    aria-label="Upload face image">
-              📁 Choose Image
-            </button>
-            <input type="file" id="file-input" accept="image/*" class="sr-only" />
-          </div>
-
-          <hr class="divider" />
-
-          <!-- Subgroup context -->
-          <p class="form-label">Subgroup Context</p>
-          <div class="sg-tiles">
-            <div class="sg-tile">
-              <div class="sg-tile__label">MST Subgroup FPR</div>
-              <div class="sg-tile__val mono" id="sg-fpr-val">2.32%</div>
-              <div class="sg-tile__sub"   id="sg-fpr-sub">MST 5 subgroup</div>
-            </div>
-            <div class="sg-tile">
-              <div class="sg-tile__label">Gender FPR</div>
-              <div class="sg-tile__val mono" id="sg-gen-val">2.46%</div>
-              <div class="sg-tile__sub">Selected gender</div>
-            </div>
-            <div class="sg-tile">
-              <div class="sg-tile__label">Monk F_EO</div>
-              <div class="sg-tile__val mono" id="sg-feo-val">0.0515</div>
-              <div class="sg-tile__sub">Equalized Odds gap</div>
-            </div>
-            <div class="sg-tile">
-              <div class="sg-tile__label">EER</div>
-              <div class="sg-tile__val mono">1.36%</div>
-              <div class="sg-tile__sub">Equal Error Rate</div>
-            </div>
-          </div>
-
-        </div><!-- /sidebar-card -->
-      </aside>
-
-
-      <!-- ── RIGHT DISPLAY PANEL ──────────────────────────────── -->
-      <main aria-label="XAI inference display" role="main">
-
-        <!-- Result banner -->
-        <div class="result-banner idle" id="result-banner" role="status" aria-live="polite">
-          <div class="banner-label idle" id="banner-label">
-            ⬆️ Upload or select a sample image to run detection
-          </div>
-          <div class="banner-score" id="banner-score" style="color:var(--txt-3)">—</div>
-        </div>
-
-        <!-- Probability bars -->
-        <div class="prob-bars">
-          <div>
-            <div class="prob-row__head">
-              <span style="color:var(--red);font-weight:700;">P(Fake / AI-Generated)</span>
-              <span class="mono" id="pfake-pct" style="color:var(--red);font-weight:700;">—</span>
-            </div>
-            <div class="prob-track">
-              <div class="prob-fill fake" id="pfake-fill" style="width:0%"></div>
-            </div>
-          </div>
-          <div>
-            <div class="prob-row__head">
-              <span style="color:var(--green);font-weight:700;">P(Real / Human)</span>
-              <span class="mono" id="preal-pct" style="color:var(--green);font-weight:700;">—</span>
-            </div>
-            <div class="prob-track">
-              <div class="prob-fill real" id="preal-fill" style="width:0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- XAI Card -->
-        <div class="card card--elevated">
-          <div class="card__head">
-            <h3 class="card__title">
-              <span class="icon" aria-hidden="true">🖼️</span>
-              Multimodal XAI Outputs
-            </h3>
-            <div style="display:flex;gap:.5rem;align-items:center;">
-              <span class="badge badge--gray">224 × 224 px</span>
-              <button class="btn btn--outline btn--sm"
-                      onclick="document.getElementById('file-input').click()">
-                📁 Upload
-              </button>
-            </div>
-          </div>
-
-          <!-- Drop zone (hidden after first image) -->
-          <div class="upload-zone" id="upload-zone" role="button"
-               tabindex="0" aria-label="Drop face image here or click to upload"
-               onkeydown="if(event.key==='Enter')document.getElementById('file-input').click()">
-            <div class="upload-zone__icon" aria-hidden="true">📤</div>
-            <p class="upload-zone__title">Drop a face image here, or click to upload</p>
-            <p class="upload-zone__sub">PNG / JPG — resized to 224 × 224 for inference</p>
-          </div>
-
-          <!-- 3-column visualiser panels (hidden until image loaded) -->
-          <div class="viz-grid" id="viz-grid" style="display:none;"
-               role="group" aria-label="XAI visualizations">
-
-            <!-- Panel 1: Original input -->
-            <div class="viz-panel">
-              <div class="viz-head">
-                <span>Input (224 × 224)</span>
-                <span aria-hidden="true">🖼</span>
-              </div>
-              <div class="viz-body">
-                <img id="orig-img" src="" alt="Uploaded face image at 224x224 resolution" />
-              </div>
-              <div class="viz-caption">
-                Preprocessed input fed to EfficientNet-B0 backbone. ImageNet normalization applied.
-              </div>
-            </div>
-
-            <!-- Panel 2: Grad-CAM -->
-            <div class="viz-panel">
-              <div class="viz-head">
-                <span>Spatial Grad-CAM</span>
-                <span aria-hidden="true">🔥</span>
-              </div>
-              <div class="viz-body">
-                <canvas id="gradcam-canvas" width="224" height="224"
-                        aria-label="Grad-CAM spatial activation heatmap overlay"></canvas>
-              </div>
-              <div class="viz-caption">
-                <strong>Red/warm regions</strong> = backbone activations that most influenced the
-                fake/real decision (last Conv2d layer, channel-weighted).
-              </div>
-            </div>
-
-            <!-- Panel 3: 2D FFT Spectrum -->
-            <div class="viz-panel">
-              <div class="viz-head">
-                <span>2D FFT Log-Magnitude</span>
-                <span aria-hidden="true">📡</span>
-              </div>
-              <div class="viz-body">
-                <canvas id="fft-canvas" width="224" height="224"
-                        aria-label="2D FFT log-magnitude frequency spectrum"></canvas>
-              </div>
-              <div class="viz-caption">
-                20·log₁₀(|FFT| + ε) centred spectrum. GAN / diffusion upsampling grids
-                appear as bright cross or periodic patterns in the high-frequency region.
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-      </main>
-    </div><!-- /demo-layout -->
+<!-- ════════ STATS BAR ════════ -->
+<div class="stats-section">
+  <div class="stats-inner">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-item__value">25k</div>
+        <div class="stat-item__label">Training samples</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__value">10</div>
+        <div class="stat-item__label">Monk Skin Tones</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__value">3</div>
+        <div class="stat-item__label">Model architectures</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__value">99.9%</div>
+        <div class="stat-item__label">Fake detection rate</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__value">1.36%</div>
+        <div class="stat-item__label">Equal Error Rate</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item__value">3</div>
+        <div class="stat-item__label">Training epochs</div>
+      </div>
+    </div>
   </div>
-</section>
+</div>
 
-
-<!-- ════════════════════════════════════════════════════════════════
-     SECTION 3 — ALGORITHMIC FAIRNESS AUDIT
-     ════════════════════════════════════════════════════════════════ -->
-<section id="fairness" class="section section--alt" aria-labelledby="fairness-title">
-  <div class="section__inner">
-
-    <header class="section__header">
-      <p class="section__eyebrow" aria-hidden="true">⚖️ Algorithmic Fairness</p>
-      <h2 class="section__title" id="fairness-title">Demographic Bias Audit</h2>
-      <p class="section__desc">
-        Full subgroup evaluation across Monk Skin Tone (MST 1–10) and gender using the
-        Equalized Odds disparity metric (F_EO), inspired by the CVPR 2025 AI-Face FairnessBench.
-      </p>
-    </header>
-
-    <!-- KPI tiles -->
-    <div class="fairness-kpis" role="region" aria-label="Fairness key metrics">
-      <div class="metric-tile">
-        <div class="metric-tile__label">Overall AUC</div>
-        <div class="metric-tile__value green mono">0.9987</div>
-        <div class="metric-tile__sub">5,000-sample test split</div>
-      </div>
-      <div class="metric-tile">
-        <div class="metric-tile__label">Monk F_EO (MST 1-10)</div>
-        <div class="metric-tile__value amber mono">0.0515</div>
-        <div class="metric-tile__sub">↓ 71.4% vs unmitigated</div>
-      </div>
-      <div class="metric-tile">
-        <div class="metric-tile__label">Gender F_EO</div>
-        <div class="metric-tile__value green mono">0.0053</div>
-        <div class="metric-tile__sub">Female vs Male — negligible</div>
-      </div>
-      <div class="metric-tile">
-        <div class="metric-tile__label">Opt. Threshold T</div>
-        <div class="metric-tile__value blue mono">0.1463</div>
-        <div class="metric-tile__sub">Method: fpr_constrained</div>
-      </div>
+<!-- ════════ FEATURES SECTION ════════ -->
+<div class="features-section">
+  <div style="max-width:1360px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:var(--sp-10);">
+      <p style="font-size:.75rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--blue);margin-bottom:var(--sp-3);">🛠️ Platform Features</p>
+      <h2 style="font-size:clamp(1.5rem,3.5vw,2.2rem);font-weight:800;margin-bottom:var(--sp-3);">Everything you need to audit deepfakes fairly</h2>
+      <p style="color:var(--txt-2);max-width:560px;margin:0 auto;line-height:1.7;">Four dedicated pages, each purpose-built for a different aspect of the FairShield XAI pipeline.</p>
     </div>
 
-    <!-- Threshold callout -->
-    <div class="callout" role="note" aria-label="Optimal threshold details"
-         style="margin-bottom:var(--sp-6);">
-      <p>
-        <strong>FPR-Constrained Threshold T = 0.1463</strong> — selected via ROC curve walk to
-        maximise TPR subject to FPR ≤ 5% budget. At this threshold:
-        FPR = <strong>4.76%</strong> · TPR = <strong>99.88%</strong> · EER = <strong>1.36%</strong>.
-        The threshold is stored in <code>checkpoints/best_model.pt</code> and loaded dynamically
-        by <code>app.py</code>.
-      </p>
-    </div>
+    <div class="features-grid">
+      <a href="detector.html" class="feature-card feature-card--highlight">
+        <div class="feature-card__icon">🔍</div>
+        <h3 class="feature-card__title">XAI Deepfake Detector</h3>
+        <p class="feature-card__desc">Upload any face image and get instant real/fake classification with Grad-CAM spatial heatmaps and 2D FFT frequency spectrum visualisation.</p>
+        <div class="feature-card__link">Open Detector →</div>
+      </a>
 
-    <!-- FPR chart -->
-    <div class="card chart-card">
-      <div class="card__head">
-        <h3 class="card__title">
-          <span class="icon" aria-hidden="true">📊</span>
-          False Positive Rate Disparity — Monk Skin Tone 1–10
-        </h3>
-        <div class="chart-controls" role="group" aria-label="Chart mode toggle">
-          <button class="btn btn--outline btn--sm btn--active" id="btn-mitigated">
-            Mitigated (Equalized Odds)
-          </button>
-          <button class="btn btn--outline btn--sm" id="btn-baseline">
-            Unmitigated Baseline
-          </button>
-        </div>
-      </div>
-      <div class="chart-wrap">
-        <canvas id="fpr-chart" aria-label="Bar chart of FPR by Monk Skin Tone scale" role="img"></canvas>
-      </div>
-      <p style="font-size:.72rem;color:var(--txt-3);margin-top:var(--sp-3);">
-        🔴 Red bars = FPR > 7% (exceeds budget, driven by small real-image sample counts at MST 1–2).
-        🟡 Amber = 3–7%. 🔵 Blue = within ≤ 3% (well-controlled).
-        * Baseline = trained with standard BCE loss.
-      </p>
-    </div>
+      <a href="fairness.html" class="feature-card">
+        <div class="feature-card__icon">⚖️</div>
+        <h3 class="feature-card__title">Algorithmic Fairness Audit</h3>
+        <p class="feature-card__desc">Full subgroup evaluation across all 10 Monk Skin Tones and gender. Interactive FPR charts toggle between mitigated and baseline models.</p>
+        <div class="feature-card__link">View Audit →</div>
+      </a>
 
-    <!-- MST breakdown table -->
-    <div class="card" style="margin-bottom:var(--sp-6);">
-      <div class="card__head">
-        <h3 class="card__title">
-          <span class="icon" aria-hidden="true">🔬</span>
-          Per-Tone Subgroup Metrics (MST 1–10)
-        </h3>
-        <span class="badge badge--blue">Mitigated · test_5k.csv</span>
-      </div>
-      <div class="tbl-wrap">
-        <table class="tbl" id="mst-table" aria-label="Per Monk Skin Tone subgroup metrics">
-          <thead>
-            <tr>
-              <th scope="col">MST</th>
-              <th scope="col">N (total)</th>
-              <th scope="col">Real / Fake</th>
-              <th scope="col">Accuracy</th>
-              <th scope="col">AUC</th>
-              <th scope="col">TPR</th>
-              <th scope="col">FPR</th>
-              <th scope="col">F1</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Populated by app.js buildMstTable() -->
-          </tbody>
-        </table>
+      <a href="benchmarks.html" class="feature-card">
+        <div class="feature-card__icon">📊</div>
+        <h3 class="feature-card__title">Architecture Benchmarks</h3>
+        <p class="feature-card__desc">Compare SpatialDetector, FrequencyDetector, and DualStreamDetector across AUC, accuracy, FPR, and Equalized Odds metrics.</p>
+        <div class="feature-card__link">See Benchmarks →</div>
+      </a>
+
+      <a href="about.html" class="feature-card">
+        <div class="feature-card__icon">ℹ️</div>
+        <h3 class="feature-card__title">Model Card & Methodology</h3>
+        <p class="feature-card__desc">Dataset provenance, training methodology, architecture deep-dives, tech stack, and the full research narrative behind FairShield XAI.</p>
+        <div class="feature-card__link">Read About →</div>
+      </a>
+
+      <a href="https://github.com/sunnyviraj9/deepfake-fairness-detector" target="_blank" rel="noopener noreferrer" class="feature-card">
+        <div class="feature-card__icon">📂</div>
+        <h3 class="feature-card__title">Open Source Code</h3>
+        <p class="feature-card__desc">Full training pipeline, evaluation scripts, demographic auto-labeling, and Streamlit app available on GitHub under MIT license.</p>
+        <div class="feature-card__link">View on GitHub ↗</div>
+      </a>
+
+      <div class="feature-card" style="background:linear-gradient(135deg,#0f172a,#1e3a8a);border-color:#1e3a8a;color:#fff;">
+        <div class="feature-card__icon">🎯</div>
+        <h3 class="feature-card__title" style="color:#fff;">Optimal Threshold</h3>
+        <p class="feature-card__desc" style="color:rgba(255,255,255,.75);">Calibrated decision boundary T = 0.1463 constrains real-image false alarms to ≤ 5% while maintaining 99.88% deepfake detection rate.</p>
+        <div style="margin-top:var(--sp-4);font-family:var(--font-mono);font-size:1.1rem;font-weight:700;color:#60a5fa;">T = 0.1463 · FPR 4.76% · TPR 99.88%</div>
       </div>
     </div>
-
-    <!-- Gender + Progression side-by-side -->
-    <div class="progression-grid">
-
-      <!-- Gender table -->
-      <div class="card">
-        <div class="card__head">
-          <h3 class="card__title"><span class="icon" aria-hidden="true">👥</span> Gender Breakdown</h3>
-          <span class="badge badge--green">F_EO = 0.0053</span>
-        </div>
-        <div class="tbl-wrap">
-          <table class="tbl" aria-label="Gender fairness breakdown">
-            <thead>
-              <tr>
-                <th>Gender</th><th>N</th><th>Accuracy</th>
-                <th>TPR</th><th>FPR</th><th>F1</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Female</strong></td>
-                <td>2,216</td><td>98.33%</td>
-                <td>99.05%</td>
-                <td><span class="chip chip--amber">2.46%</span></td>
-                <td class="mono">98.42%</td>
-              </tr>
-              <tr>
-                <td><strong>Male</strong></td>
-                <td>2,784</td><td>98.81%</td>
-                <td>99.10%</td>
-                <td><span class="chip chip--green">1.45%</span></td>
-                <td class="mono">98.77%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="callout" style="margin-top:var(--sp-4);">
-          <p>
-            Gender F_EO = <strong>0.0053</strong>.
-            ΔFPR = <strong>1.01 pp</strong> · ΔTPR = <strong>0.05 pp</strong>.
-            Disparity is negligible — model performs equitably across genders.
-          </p>
-        </div>
-      </div>
-
-      <!-- Training progression chart -->
-      <div class="card">
-        <div class="card__head">
-          <h3 class="card__title">
-            <span class="icon" aria-hidden="true">📉</span>
-            F_EO Reduction Over Training
-          </h3>
-          <span class="badge badge--amber">3 epochs · 25k samples</span>
-        </div>
-        <div class="chart-wrap" style="height:260px;">
-          <canvas id="progression-chart"
-                  aria-label="Line chart showing F_EO and AUC progression across epochs"
-                  role="img"></canvas>
-        </div>
-      </div>
-
-    </div>
-
   </div>
-</section>
+</div>
 
-
-<!-- ════════════════════════════════════════════════════════════════
-     SECTION 4 — ARCHITECTURE BENCHMARK MATRIX
-     ════════════════════════════════════════════════════════════════ -->
-<section id="benchmarks" class="section" aria-labelledby="bench-title">
-  <div class="section__inner">
-
-    <header class="section__header">
-      <p class="section__eyebrow" aria-hidden="true">📊 Architecture Comparison</p>
-      <h2 class="section__title" id="bench-title">Model Benchmark Matrix</h2>
-      <p class="section__desc">
-        Three detector architectures compared across AUC, accuracy, false positive rate,
-        and Equalized Odds fairness gap. All evaluated on the same IMDB-Wiki +
-        Stable Diffusion 1.5 test split.
-      </p>
-    </header>
-
-    <!-- Benchmark grouped bar chart -->
-    <div class="card" style="margin-bottom:var(--sp-6);">
-      <div class="card__head">
-        <h3 class="card__title">
-          <span class="icon" aria-hidden="true">📈</span>
-          Architecture Performance Comparison (Normalised Scores)
-        </h3>
-        <span class="badge badge--gray">Higher = Better for all metrics</span>
-      </div>
-      <div class="chart-wrap" style="height:300px;">
-        <canvas id="bench-chart"
-                aria-label="Grouped bar chart comparing spatial, frequency, and dual-stream detectors"
-                role="img"></canvas>
-      </div>
-      <p style="font-size:.72rem;color:var(--txt-3);margin-top:var(--sp-2);">
-        1 − FPR(T_opt) and 1 − F_EO×10 are shown so higher = better across all axes.
-        ✅ = trained &amp; evaluated on this machine. Others are benchmark estimates.
-      </p>
+<!-- ════════ HOW IT WORKS ════════ -->
+<div class="how-section">
+  <div class="how-inner">
+    <div style="text-align:center;margin-bottom:var(--sp-4);">
+      <p style="font-size:.75rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--blue);margin-bottom:var(--sp-3);">⚙️ How It Works</p>
+      <h2 style="font-size:clamp(1.5rem,3.5vw,2.2rem);font-weight:800;">From image to fair decision in four steps</h2>
     </div>
-
-    <!-- Detailed comparison table -->
-    <div class="card" style="margin-bottom:var(--sp-6);">
-      <div class="card__head">
-        <h3 class="card__title">
-          <span class="icon" aria-hidden="true">📋</span>
-          Detailed Metrics Table
-        </h3>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-card__number">1</div>
+        <div class="step-card__icon">📸</div>
+        <h3 class="step-card__title">Upload Face Image</h3>
+        <p class="step-card__desc">Drag and drop any face image. It's resized to 224×224 and normalised with ImageNet statistics before inference.</p>
       </div>
-      <div class="tbl-wrap">
-        <table class="tbl" aria-label="Architecture comparison table">
-          <thead>
-            <tr>
-              <th>Architecture</th>
-              <th>Backbone</th>
-              <th>Input</th>
-              <th>AUC</th>
-              <th>Accuracy</th>
-              <th>F1</th>
-              <th>FPR (T=0.5)</th>
-              <th>FPR (T=opt)</th>
-              <th>Monk F_EO</th>
-              <th>EER</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>SpatialDetector</strong></td>
-              <td>EfficientNet-B0</td>
-              <td>224×224 RGB</td>
-              <td class="mono"><strong>0.9987</strong></td>
-              <td><strong>98.60%</strong></td>
-              <td class="mono"><strong>0.9861</strong></td>
-              <td>1.88%</td>
-              <td><span class="chip chip--green">4.76%</span></td>
-              <td><span class="chip chip--green">0.0515</span></td>
-              <td>1.36%</td>
-              <td><span class="chip chip--blue">Trained ✅</span></td>
-            </tr>
-            <tr>
-              <td><strong>FrequencyDetector</strong></td>
-              <td>ResNet-34 + 2D-FFT</td>
-              <td>6-ch Spectral</td>
-              <td class="mono">~0.965</td>
-              <td>~91.8%</td>
-              <td class="mono">~0.911</td>
-              <td>~18.1%</td>
-              <td><span class="chip chip--amber">~6.8%</span></td>
-              <td><span class="chip chip--green">~0.041</span></td>
-              <td>~5.2%</td>
-              <td><span class="chip chip--amber">Estimated</span></td>
-            </tr>
-            <tr class="row--highlight">
-              <td><strong>DualStream (Gated)</strong></td>
-              <td>EfficientNet-B0 + ResNet-34</td>
-              <td>RGB + FFT</td>
-              <td class="mono">~0.9995</td>
-              <td>~99.1%</td>
-              <td class="mono">~0.991</td>
-              <td>~1.2%</td>
-              <td><span class="chip chip--green">~3.8%</span></td>
-              <td><span class="chip chip--green">~0.030</span></td>
-              <td>~0.9%</td>
-              <td><span class="chip chip--blue">Projected Best</span></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="step-card">
+        <div class="step-card__number">2</div>
+        <div class="step-card__icon">🧠</div>
+        <h3 class="step-card__title">Neural Inference</h3>
+        <p class="step-card__desc">EfficientNet-B0 processes the image through its pretrained backbone. The custom classification head outputs a binary logit.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-card__number">3</div>
+        <div class="step-card__icon">🔬</div>
+        <h3 class="step-card__title">XAI Explanation</h3>
+        <p class="step-card__desc">Grad-CAM backpropagates through the last convolutional layer. The 2D FFT spectrum reveals synthesis artefacts in the frequency domain.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-card__number">4</div>
+        <div class="step-card__icon">⚖️</div>
+        <h3 class="step-card__title">Fairness Audit</h3>
+        <p class="step-card__desc">Equalized Odds regularisation and demographic-balanced sampling ensure consistent performance across all 10 Monk Skin Tones.</p>
       </div>
     </div>
-
-    <!-- Architecture cards -->
-    <div class="bench-arch-cards">
-
-      <!-- Spatial -->
-      <div class="arch-card">
-        <div class="arch-card__icon" aria-hidden="true">🌐</div>
-        <h3 class="arch-card__name">SpatialDetector</h3>
-        <p class="arch-card__sub">EfficientNet-B0 · Trained &amp; Audited ✅</p>
-        <ul class="arch-card__spec-list">
-          <li>timm EfficientNet-B0 backbone (pretrained ImageNet)</li>
-          <li>Head: Dropout → Linear(1280→256) → BN → SiLU → Linear(256→1)</li>
-          <li>Xavier uniform init; configurable backbone freeze stages</li>
-          <li>Equalized-odds regularised BCE (λ = 0.5)</li>
-          <li>WeightedRandomSampler over MST × Gender subgroups</li>
-          <li>Grad-CAM XAI on last Conv2d layer</li>
-        </ul>
-        <div class="arch-card__footer trained">Best single-stream result — fully evaluated</div>
-      </div>
-
-      <!-- Frequency -->
-      <div class="arch-card">
-        <div class="arch-card__icon" aria-hidden="true">📡</div>
-        <h3 class="arch-card__name">FrequencyDetector</h3>
-        <p class="arch-card__sub">ResNet-34 + 2D-FFT · Benchmark estimate</p>
-        <ul class="arch-card__spec-list">
-          <li>2D FFT log-magnitude + high-pass spatial residual → 6-ch tensor</li>
-          <li>ResNet-34 backbone with in_chans=6</li>
-          <li>High-pass cutoff radius: 0.1 (normalised frequency units)</li>
-          <li>Detects GAN upsampling spectral grid artefacts</li>
-          <li>Fully differentiable via <code>torch.fft.fft2</code></li>
-          <li>Complementary to spatial features</li>
-        </ul>
-        <div class="arch-card__footer est">Best for GAN / periodic synthesis artefacts</div>
-      </div>
-
-      <!-- Dual Stream -->
-      <div class="arch-card arch-card--best">
-        <div class="arch-card__icon" aria-hidden="true">🔀</div>
-        <h3 class="arch-card__name">DualStreamDetector</h3>
-        <p class="arch-card__sub">Gated Spatial + Frequency Fusion · Projected Best</p>
-        <ul class="arch-card__spec-list">
-          <li>Spatial &amp; Frequency streams process input in parallel</li>
-          <li>Feature concat: [spatial_feat ‖ freq_feat]</li>
-          <li>Gated fusion: σ(Linear(fused)) × fused — learned attention</li>
-          <li>Shared head: Dropout → 256 → BN → SiLU → 1 logit</li>
-          <li>Projected lowest F_EO via combined domain evidence</li>
-          <li>Run <code>benchmark.py</code> to reproduce full comparison</li>
-        </ul>
-        <div class="arch-card__footer proj">Projected best overall fairness + performance</div>
-      </div>
-
-    </div>
-
   </div>
-</section>
+</div>
 
-
-<!-- ════════════════════════════════════════════════════════════════
-     FOOTER
-     ════════════════════════════════════════════════════════════════ -->
-<footer class="footer" role="contentinfo">
-  <div class="footer__inner">
-    <div class="footer__brand">
-      <span aria-hidden="true">🛡️</span>
-      FairShield XAI &mdash; Deepfake Detection &amp; Algorithmic Fairness
-    </div>
-    <nav class="footer__links" aria-label="Footer links">
-      <a href="https://github.com/sunnyviraj9/deepfake-fairness-detector"
-         target="_blank" rel="noopener noreferrer">GitHub</a>
-      <a href="#demo">Live Demo</a>
-      <a href="#fairness">Fairness Audit</a>
-      <a href="#benchmarks">Benchmarks</a>
-    </nav>
-    <p class="footer__copy">
-      Capstone Project · CVPR 2025 AI-Face FairnessBench ·
-      EfficientNet-B0 · AUC 0.9987 · F_EO 0.0515
-    </p>
-  </div>
-</footer>
-
-
-<!-- App logic (deferred, loads after DOM) -->
-<script src="app.js" defer></script>
-
+<!-- Shared footer -->
+<div id="footer-mount"></div>
 </body>
 </html>

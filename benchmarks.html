@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FairShield XAI — Benchmarks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+  <script defer>document.addEventListener('DOMContentLoaded', initBenchmarks);</script>
+</head>
+<body>
+<div id="nav-mount"></div>
+
+<!-- ════════ PAGE HEADER ════════ -->
+<div class="page-header">
+  <div class="page-header__inner">
+    <p class="page-header__eyebrow">📊 Architecture Benchmarks</p>
+    <h1 class="page-header__title">Model Performance<br />Comparison Matrix</h1>
+    <p class="page-header__desc">
+      Three detector architectures evaluated across AUC, accuracy, F1, false positive rate,
+      and Equalized Odds gap on the IMDB-Wiki + Stable Diffusion 1.5 test split.
+    </p>
+    <div class="page-header__meta">
+      <span class="badge badge--blue">SpatialDetector ✅ Trained</span>
+      <span class="badge badge--amber">FrequencyDetector Est.</span>
+      <span class="badge badge--green">DualStream Projected</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-body">
+
+  <!-- Overview KPIs -->
+  <div class="four-col mb-8">
+    <div class="metric-tile">
+      <div class="metric-tile__label">Best AUC</div>
+      <div class="metric-tile__value green">0.9987</div>
+      <div class="metric-tile__sub">SpatialDetector (EfficientNet-B0)</div>
+    </div>
+    <div class="metric-tile">
+      <div class="metric-tile__label">Best Accuracy</div>
+      <div class="metric-tile__value green">98.60%</div>
+      <div class="metric-tile__sub">SpatialDetector</div>
+    </div>
+    <div class="metric-tile">
+      <div class="metric-tile__label">Best F_EO (Fairest)</div>
+      <div class="metric-tile__value blue">~0.030</div>
+      <div class="metric-tile__sub">DualStream (projected)</div>
+    </div>
+    <div class="metric-tile">
+      <div class="metric-tile__label">Best FPR @ T_opt</div>
+      <div class="metric-tile__value green">~3.8%</div>
+      <div class="metric-tile__sub">DualStream (projected)</div>
+    </div>
+  </div>
+
+  <!-- Grouped bar chart -->
+  <div class="card mb-8">
+    <div class="card__head">
+      <div class="card__title">📈 Performance Comparison (Normalised Scores)</div>
+      <span class="badge badge--gray">Higher = Better across all axes</span>
+    </div>
+    <div class="chart-wrap" style="height:320px;">
+      <canvas id="bench-chart" aria-label="Architecture comparison chart" role="img"></canvas>
+    </div>
+    <p style="font-size:.72rem;color:var(--txt-3);margin-top:var(--sp-3);">
+      Axes: AUC×100, Accuracy (%), F1×100, 1−FPR(T_opt), 1−F_EO×10.
+      All shown so higher is always better. ✅ = trained &amp; evaluated. Others are estimates.
+    </p>
+  </div>
+
+  <!-- Detailed table -->
+  <div class="card mb-8">
+    <div class="card__head">
+      <div class="card__title">📋 Detailed Metrics Table</div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Architecture</th><th>Backbone</th><th>Input</th>
+            <th>AUC</th><th>Accuracy</th><th>F1</th>
+            <th>FPR (T=0.5)</th><th>FPR (T=opt)</th>
+            <th>Monk F_EO</th><th>EER</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>SpatialDetector</strong></td>
+            <td>EfficientNet-B0</td><td>224×224 RGB</td>
+            <td class="mono"><strong>0.9987</strong></td>
+            <td><strong>98.60%</strong></td>
+            <td class="mono"><strong>0.9861</strong></td>
+            <td>1.88%</td>
+            <td><span class="chip chip--green">4.76%</span></td>
+            <td><span class="chip chip--green">0.0515</span></td>
+            <td>1.36%</td>
+            <td><span class="chip chip--blue">Trained ✅</span></td>
+          </tr>
+          <tr>
+            <td><strong>FrequencyDetector</strong></td>
+            <td>ResNet-34 + 2D-FFT</td><td>6-ch Spectral</td>
+            <td class="mono">~0.965</td><td>~91.8%</td>
+            <td class="mono">~0.911</td>
+            <td>~18.1%</td>
+            <td><span class="chip chip--amber">~6.8%</span></td>
+            <td><span class="chip chip--green">~0.041</span></td>
+            <td>~5.2%</td>
+            <td><span class="chip chip--amber">Estimated</span></td>
+          </tr>
+          <tr class="row--highlight">
+            <td><strong>DualStream (Gated)</strong></td>
+            <td>EfficientNet-B0 + ResNet-34</td><td>RGB + FFT</td>
+            <td class="mono">~0.9995</td><td>~99.1%</td>
+            <td class="mono">~0.991</td>
+            <td>~1.2%</td>
+            <td><span class="chip chip--green">~3.8%</span></td>
+            <td><span class="chip chip--green">~0.030</span></td>
+            <td>~0.9%</td>
+            <td><span class="chip chip--blue">Projected</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Architecture deep-dive cards -->
+  <div class="section-head">
+    <div class="section-head__title">🏗️ Architecture Deep Dives</div>
+    <div class="section-head__desc">Technical details of each detector design.</div>
+  </div>
+  <div class="three-col mb-8">
+    <div class="arch-card">
+      <div class="arch-card__icon">🌐</div>
+      <h3 class="arch-card__name">SpatialDetector</h3>
+      <p class="arch-card__sub">EfficientNet-B0 · Trained &amp; Audited ✅</p>
+      <ul class="arch-card__spec-list">
+        <li>timm EfficientNet-B0 backbone (pretrained ImageNet)</li>
+        <li>Head: Dropout → Linear(1280→256) → BN → SiLU → Linear(256→1)</li>
+        <li>Xavier uniform init; configurable backbone freeze stages</li>
+        <li>Equalized-odds regularised BCE (λ = 0.5)</li>
+        <li>WeightedRandomSampler over 20 MST × Gender subgroups</li>
+        <li>Grad-CAM XAI on last Conv2d layer</li>
+        <li>Input: 224×224 RGB, ImageNet normalisation</li>
+        <li>3 epochs · batch 64 · AdamW lr=1e-4</li>
+      </ul>
+      <div class="arch-card__footer trained">Best single-stream — fully evaluated</div>
+    </div>
+
+    <div class="arch-card">
+      <div class="arch-card__icon">📡</div>
+      <h3 class="arch-card__name">FrequencyDetector</h3>
+      <p class="arch-card__sub">ResNet-34 + 2D-FFT · Benchmark estimate</p>
+      <ul class="arch-card__spec-list">
+        <li>FrequencyExtractor: log-magnitude + high-pass residual → 6ch</li>
+        <li>torch.fft.fft2 → fftshift → log(1+|FFT|) per-channel normalised</li>
+        <li>High-pass radial mask, cutoff = 0.1 (normalised freq units)</li>
+        <li>ResNet-34 backbone with in_chans=6 (adapted first conv)</li>
+        <li>Same head as SpatialDetector</li>
+        <li>Fully differentiable — FFT computed in forward pass</li>
+        <li>Detects GAN upsampling spectral grid artefacts</li>
+      </ul>
+      <div class="arch-card__footer est">Best for periodic synthesis artefacts</div>
+    </div>
+
+    <div class="arch-card arch-card--best">
+      <div class="arch-card__icon">🔀</div>
+      <h3 class="arch-card__name">DualStreamDetector</h3>
+      <p class="arch-card__sub">Gated Spatial + Frequency Fusion · Projected Best</p>
+      <ul class="arch-card__spec-list">
+        <li>Parallel spatial (EfficientNet-B0) + frequency (ResNet-34) streams</li>
+        <li>Feature concat: [spatial_feat ‖ freq_feat] (1280 + 512 = 1792-dim)</li>
+        <li>Gated fusion: σ(Linear(1792→1792)) × fused — learned channel attention</li>
+        <li>Shared fusion head: Dropout → 256 → BN → SiLU → 1</li>
+        <li>extract_features() bypasses each stream's head</li>
+        <li>Both streams share equalized-odds training objective</li>
+        <li>Run benchmark.py to reproduce full comparison</li>
+      </ul>
+      <div class="arch-card__footer proj">Projected best overall fairness + performance</div>
+    </div>
+  </div>
+
+  <!-- Run benchmark callout -->
+  <div class="callout">
+    <p>
+      <strong>Reproduce this benchmark:</strong> Run
+      <code>python benchmark.py</code> from the project root to train all four configurations
+      (EfficientNet-B0 Spatial, ResNet-50 Spatial, ResNet-18 Frequency, EfficientNet-B0 DualStream)
+      and generate <code>benchmark_results/benchmark_report.md</code> and CSV comparison.
+      Expect ~6 hours on a 12-core CPU machine.
+    </p>
+  </div>
+
+</div>
+<div id="footer-mount"></div>
+</body>
+</html>

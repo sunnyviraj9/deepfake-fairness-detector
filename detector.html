@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FairShield XAI — Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+  <script defer>document.addEventListener('DOMContentLoaded', initDetector);</script>
+</head>
+<body>
+<div id="nav-mount"></div>
+
+<!-- ════════ PAGE HEADER ════════ -->
+<div class="page-header">
+  <div class="page-header__inner">
+    <p class="page-header__eyebrow">🔍 XAI Deepfake Detector</p>
+    <h1 class="page-header__title">Interactive Deepfake Detection<br />& Explainability Playground</h1>
+    <p class="page-header__desc">
+      Upload a face image or choose a preset. The model runs binary classification,
+      then generates a Grad-CAM spatial heatmap and a 2D FFT frequency spectrum —
+      all rendered live in the browser.
+    </p>
+    <div class="page-header__meta">
+      <span class="badge badge--blue">EfficientNet-B0</span>
+      <span class="badge badge--green">AUC 0.9987</span>
+      <span class="badge badge--gray">T = 0.1463 (FPR ≤ 5%)</span>
+      <span class="badge badge--amber">224 × 224 px input</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MAIN LAYOUT ════════ -->
+<div class="page-body">
+  <div class="two-col">
+
+    <!-- LEFT SIDEBAR -->
+    <aside>
+      <div class="card sidebar-card">
+        <div class="card__head">
+          <div class="card__title">🎛️ Inference Controls</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="model-select">Detector Architecture</label>
+          <select id="model-select">
+            <option value="spatial">SpatialDetector — EfficientNet-B0 ✅</option>
+            <option value="frequency">FrequencyDetector — ResNet-34 (FFT)</option>
+            <option value="dual">DualStream — Gated Fusion (Projected)</option>
+          </select>
+          <small style="font-size:.72rem;color:var(--txt-3);margin-top:.3rem;display:block;">✅ = trained &amp; evaluated on this machine</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="thresh-slider">Decision Threshold <span>(T = FPR-calibrated)</span></label>
+          <div class="slider-row">
+            <input type="range" id="thresh-slider" min="0.05" max="0.95" step="0.01" value="0.1463" />
+            <span class="slider-badge" id="thresh-badge">0.15</span>
+          </div>
+          <small style="font-size:.72rem;color:var(--txt-3);margin-top:.3rem;display:block;">
+            Optimal: <strong>0.1463</strong> → FPR 4.76% · TPR 99.88%
+          </small>
+        </div>
+
+        <hr class="divider" />
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-4);color:var(--txt-2);">👤 Demographic Metadata</div>
+
+        <div class="form-group">
+          <label class="form-label" for="mst-slider">Monk Skin Tone <span>(MST 1–10)</span></label>
+          <div class="slider-row">
+            <input type="range" id="mst-slider" min="1" max="10" step="1" value="5" />
+            <span class="slider-badge" id="mst-badge">MST 5</span>
+          </div>
+          <div class="mst-swatches" id="mst-swatches" role="group" aria-label="Monk Skin Tone swatches"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="gender-select">Gender Annotation</label>
+          <select id="gender-select">
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Unspecified">Unspecified</option>
+          </select>
+        </div>
+
+        <hr class="divider" />
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-4);color:var(--txt-2);">🧪 Sample Presets</div>
+        <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-bottom:var(--sp-4);">
+          <button class="btn btn--outline btn--sm" data-preset="sd15">SD 1.5 (Fake)</button>
+          <button class="btn btn--outline btn--sm" data-preset="imdb">IMDB (Real)</button>
+          <button class="btn btn--outline btn--sm" data-preset="sg3">StyleGAN3 (Fake)</button>
+        </div>
+
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📁 Upload Image</div>
+        <button class="btn btn--outline btn--sm" onclick="document.getElementById('file-input').click()">Choose File</button>
+        <input type="file" id="file-input" accept="image/*" class="sr-only" />
+
+        <hr class="divider" />
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📍 Subgroup Context</div>
+        <div class="sg-tiles">
+          <div class="sg-tile">
+            <div class="sg-tile__label">MST FPR</div>
+            <div class="sg-tile__val" id="sg-fpr-val">2.32%</div>
+            <div class="sg-tile__sub" id="sg-fpr-sub">MST 5</div>
+          </div>
+          <div class="sg-tile">
+            <div class="sg-tile__label">Gender FPR</div>
+            <div class="sg-tile__val" id="sg-gen-val">2.46%</div>
+            <div class="sg-tile__sub">Selected gender</div>
+          </div>
+          <div class="sg-tile">
+            <div class="sg-tile__label">Monk F_EO</div>
+            <div class="sg-tile__val" id="sg-feo-val">0.0515</div>
+            <div class="sg-tile__sub">Model-wide gap</div>
+          </div>
+          <div class="sg-tile">
+            <div class="sg-tile__label">EER</div>
+            <div class="sg-tile__val">1.36%</div>
+            <div class="sg-tile__sub">Equal Error Rate</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT DISPLAY -->
+    <main>
+      <!-- Result banner -->
+      <div class="result-banner idle" id="result-banner" role="status" aria-live="polite">
+        <div class="banner-label idle" id="banner-label">⬆️ Upload or select a preset to run detection</div>
+        <div class="banner-score" id="banner-score" style="color:var(--txt-3)">—</div>
+      </div>
+
+      <!-- Probability bars -->
+      <div class="prob-bars">
+        <div>
+          <div class="prob-row__head">
+            <span style="color:var(--red);font-weight:700;">P(Fake / AI-Generated)</span>
+            <span class="mono" id="pfake-pct" style="color:var(--red);font-weight:700;">—</span>
+          </div>
+          <div class="prob-track"><div class="prob-fill fake" id="pfake-fill" style="width:0%"></div></div>
+        </div>
+        <div>
+          <div class="prob-row__head">
+            <span style="color:var(--green);font-weight:700;">P(Real / Human)</span>
+            <span class="mono" id="preal-pct" style="color:var(--green);font-weight:700;">—</span>
+          </div>
+          <div class="prob-track"><div class="prob-fill real" id="preal-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- XAI visualisers -->
+      <div class="card card--elevated">
+        <div class="card__head">
+          <div class="card__title">🖼️ Multimodal XAI Outputs</div>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <span class="badge badge--gray">224 × 224 px</span>
+            <button class="btn btn--outline btn--sm" onclick="document.getElementById('file-input').click()">📁 Upload</button>
+          </div>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="upload-zone" id="upload-zone" role="button" tabindex="0"
+             onkeydown="if(event.key==='Enter')document.getElementById('file-input').click()">
+          <div class="upload-zone__icon">📤</div>
+          <p class="upload-zone__title">Drop a face image here, or click to upload</p>
+          <p class="upload-zone__sub">PNG / JPG · resized to 224 × 224 for inference</p>
+        </div>
+
+        <!-- 3-col visualisers (hidden until loaded) -->
+        <div class="viz-grid" id="viz-grid" style="display:none;">
+          <div class="viz-panel">
+            <div class="viz-head"><span>Input (224 × 224)</span><span>🖼</span></div>
+            <div class="viz-body"><img id="orig-img" src="" alt="Input face" /></div>
+            <div class="viz-caption">Preprocessed input fed to EfficientNet-B0. ImageNet normalisation applied.</div>
+          </div>
+          <div class="viz-panel">
+            <div class="viz-head"><span>Spatial Grad-CAM</span><span>🔥</span></div>
+            <div class="viz-body"><canvas id="gradcam-canvas" width="224" height="224" aria-label="Grad-CAM heatmap"></canvas></div>
+            <div class="viz-caption"><strong>Warm regions</strong> = activations that most influenced the fake/real decision (last Conv2d layer).</div>
+          </div>
+          <div class="viz-panel">
+            <div class="viz-head"><span>2D FFT Log-Magnitude</span><span>📡</span></div>
+            <div class="viz-body"><canvas id="fft-canvas" width="224" height="224" aria-label="FFT spectrum"></canvas></div>
+            <div class="viz-caption">20·log₁₀(|FFT|+ε) centred spectrum. GAN grids appear as bright cross patterns.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Explanation panel -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-5);margin-top:var(--sp-5);">
+        <div class="card">
+          <div class="card__title" style="margin-bottom:var(--sp-4);">🔥 How Grad-CAM Works</div>
+          <p style="font-size:.875rem;color:var(--txt-2);line-height:1.7;">
+            Grad-CAM back-propagates the classification score through the last convolutional layer.
+            Gradient magnitudes are averaged per channel (global average pooling) to produce
+            channel importance weights, then summed over channels with ReLU to discard
+            negative contributions. The result is upsampled and overlaid on the original image
+            using the JET colormap.
+          </p>
+          <div style="margin-top:var(--sp-4);display:flex;flex-wrap:wrap;gap:var(--sp-2);">
+            <span class="chip chip--red">Red = high activation</span>
+            <span class="chip chip--amber">Amber = medium</span>
+            <span class="chip chip--blue">Blue = low</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__title" style="margin-bottom:var(--sp-4);">📡 How FFT Spectrum Works</div>
+          <p style="font-size:.875rem;color:var(--txt-2);line-height:1.7;">
+            The 2D Fast Fourier Transform decomposes the luminance channel into frequency
+            components. After fftshift (DC moved to centre), log-magnitude highlights spectral
+            artefacts. Generative models (GANs, diffusion) leave characteristic grid patterns or
+            spectral peaks invisible in the spatial domain but clearly visible here.
+          </p>
+          <div style="margin-top:var(--sp-4);display:flex;flex-wrap:wrap;gap:var(--sp-2);">
+            <span class="chip chip--blue">Blue = low freq</span>
+            <span class="chip chip--gray">Cyan = mid</span>
+            <span class="chip chip--gray">White = high freq peaks</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+</body>
+</html>
