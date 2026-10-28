@@ -25,8 +25,14 @@ from utils.metrics import FairnessAuditor, compute_binary_metrics
 def parse_args():
     parser = argparse.ArgumentParser(description="Train Deepfake Detector with Algorithmic Fairness.")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
-    parser.add_argument("--annotations", type=str, default="./dataset/train_25k.csv", help="Path to training annotations CSV")
-    parser.add_argument("--val_annotations", type=str, default=None, help="Path to validation/test annotations CSV (optional)")
+    # --annotations and --train_csv are aliases for the training CSV path
+    parser.add_argument("--annotations", "--train_csv", dest="annotations",
+                        type=str, default="./dataset/train_25k.csv",
+                        help="Path to training annotations CSV")
+    # --val_annotations and --val_csv are aliases for the validation CSV path
+    parser.add_argument("--val_annotations", "--val_csv", dest="val_annotations",
+                        type=str, default=None,
+                        help="Path to validation/test annotations CSV (optional)")
     parser.add_argument("--data_root", type=str, default=".", help="Base directory for image paths")
     parser.add_argument("--model_type", type=str, default="spatial", choices=["spatial", "frequency", "dual_stream"], help="Model architecture")
     parser.add_argument("--backbone", type=str, default="efficientnet_b0", help="Backbone name for timm")
@@ -41,6 +47,10 @@ def parse_args():
     parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Directory to save model checkpoints")
     parser.add_argument("--results_dir", type=str, default="./results", help="Directory to save logs and plots")
     parser.add_argument("--num_workers", type=int, default=0, help="DataLoader workers (0 for Windows compatibility)")
+    parser.add_argument("--torch_threads", type=int, default=0,
+                        help="Number of intra-op CPU threads for PyTorch (0 = use torch default).")
+    parser.add_argument("--freeze_backbone", type=int, default=0,
+                        help="Freeze first N stages of backbone for fast CPU head-only training (0 = no freezing).")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     return parser.parse_args()
 
@@ -52,14 +62,62 @@ def train_one_epoch(
     optimizer: torch.optim.Optimizer,
     device: torch.device,
     loss_type: str,
+    resume_path: str = "",
+    save_every: int = 50,
+    current_epoch: int = 1,
 ) -> float:
-    """Runs one training epoch."""
+    """
+    Runs one training epoch with mid-epoch checkpointing.
+
+    If ``resume_path`` points to an existing resume checkpoint whose
+    ``epoch`` matches ``current_epoch``, batches up to and including the
+    saved ``batch_idx`` are skipped (data is still iterated to keep the
+    RNG state reproducible, but no gradient step is taken).
+
+    A resume checkpoint is written every ``save_every`` batches so that
+    a killed process can continue from the last saved position rather than
+    restarting the full epoch.
+    """
     model.train()
     total_loss = 0.0
     total_samples = 0
 
-    pbar = tqdm(loader, desc="Training", leave=False)
-    for images, targets, metadata in pbar:
+    # ---- resume state -------------------------------------------------------
+    resume_batch = -1   # last completed batch index stored in resume file
+    if resume_path and os.path.exists(resume_path):
+        try:
+            res = torch.load(resume_path, map_location=device)
+            if res.get("epoch") == current_epoch:
+                resume_batch = int(res.get("batch_idx", -1))
+                total_loss   = float(res.get("total_loss", 0.0))
+                total_samples = int(res.get("total_samples", 0))
+                model.load_state_dict(res["model_state_dict"])
+                optimizer.load_state_dict(res["optimizer_state_dict"])
+                # Restore Python / NumPy / Torch RNG states for reproducibility
+                if "rng_state" in res:
+                    torch.set_rng_state(res["rng_state"])
+                if "np_rng_state" in res:
+                    np.random.set_state(res["np_rng_state"])
+                print(f"\n  [Resume] Epoch {current_epoch}: skipping batches 0-{resume_batch} "
+                      f"(accumulated loss={total_loss:.4f}, samples={total_samples})")
+        except Exception as exc:
+            print(f"  [Resume] Could not load resume checkpoint: {exc}. Starting epoch from scratch.")
+            resume_batch = -1
+            total_loss = 0.0
+            total_samples = 0
+    # -------------------------------------------------------------------------
+
+    resume_dir = os.path.dirname(resume_path) if resume_path else ""
+
+    pbar = tqdm(enumerate(loader), desc=f"Training E{current_epoch}", leave=False,
+                total=len(loader))
+    for batch_idx, (images, targets, metadata) in pbar:
+
+        # Skip already-processed batches (iterate loader to keep RNG in sync)
+        if batch_idx <= resume_batch:
+            pbar.set_postfix({"skip": batch_idx})
+            continue
+
         images = images.to(device)
         targets = targets.to(device)
         batch_size = images.size(0)
@@ -84,9 +142,28 @@ def train_one_epoch(
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
-        total_loss += loss.item() * batch_size
+        total_loss    += loss.item() * batch_size
         total_samples += batch_size
-        pbar.set_postfix({"loss": f"{loss.item():.4f}"})
+        pbar.set_postfix({"loss": f"{loss.item():.4f}",
+                          "avg":  f"{total_loss/max(total_samples,1):.4f}"})
+
+        # ---- mid-epoch checkpoint -------------------------------------------
+        if resume_path and resume_dir and (batch_idx + 1) % save_every == 0:
+            torch.save({
+                "epoch":          current_epoch,
+                "batch_idx":      batch_idx,
+                "total_loss":     total_loss,
+                "total_samples":  total_samples,
+                "model_state_dict":     model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "rng_state":      torch.get_rng_state(),
+                "np_rng_state":   np.random.get_state(),
+            }, resume_path)
+        # ---------------------------------------------------------------------
+
+    # Epoch finished — remove stale resume file so next epoch starts clean
+    if resume_path and os.path.exists(resume_path):
+        os.remove(resume_path)
 
     return total_loss / max(total_samples, 1)
 
@@ -164,6 +241,16 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
+    # CPU thread tuning — use all physical cores when no GPU is available
+    if args.torch_threads > 0:
+        torch.set_num_threads(args.torch_threads)
+        torch.set_num_interop_threads(max(1, args.torch_threads // 2))
+    elif not torch.cuda.is_available():
+        import os as _os
+        cpu_count = _os.cpu_count() or 4
+        torch.set_num_threads(cpu_count)
+        torch.set_num_interop_threads(max(1, cpu_count // 2))
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"==================================================")
     print(f"Deepfake Detector Training & Algorithmic Fairness")
@@ -194,6 +281,7 @@ def main():
         pretrained=True,
         dropout=0.3,
         num_classes=1,
+        freeze_backbone_stages=args.freeze_backbone,
     ).to(device)
 
     # 3. Setup Loss Criterion

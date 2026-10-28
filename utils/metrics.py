@@ -20,6 +20,95 @@ from sklearn.metrics import (
 )
 
 
+def find_optimal_threshold(
+    y_true: np.ndarray,
+    y_probs: np.ndarray,
+    target_fpr: float = 0.05,
+) -> Dict[str, float]:
+    """
+    Finds the optimal decision threshold that constrains the False Positive Rate (FPR)
+    to at most ``target_fpr`` while maximising True Positive Rate (TPR).
+
+    Strategy
+    --------
+    1. Walk the ROC curve and collect every threshold whose FPR ≤ target_fpr.
+    2. Among those candidates, pick the one with the highest TPR  — i.e. the
+       operating point that is *most permissive for fakes* while still respecting
+       the real-image false-alarm budget.
+    3. If **no** threshold achieves FPR ≤ target_fpr (can happen when the model
+       is poorly calibrated), fall back to the Equal Error Rate threshold so the
+       result is always well-defined.
+
+    Parameters
+    ----------
+    y_true : array-like of int
+        Ground-truth binary labels  (0 = Real, 1 = Fake).
+    y_probs : array-like of float
+        Predicted probabilities for the positive (Fake) class.
+    target_fpr : float, optional
+        Maximum tolerated FPR on real images.  Defaults to 0.05 (5 %).
+
+    Returns
+    -------
+    dict with keys:
+        ``threshold``   – chosen decision threshold (float)
+        ``fpr``         – actual FPR achieved at that threshold
+        ``tpr``         – TPR / recall achieved at that threshold
+        ``method``      – ``"fpr_constrained"`` or ``"eer_fallback"``
+        ``eer_threshold`` – EER threshold for reference
+        ``eer``         – Equal Error Rate value
+    """
+    y_true = np.asarray(y_true, dtype=int)
+    y_probs = np.asarray(y_probs, dtype=float)
+
+    if len(np.unique(y_true)) < 2:
+        # Edge-case: only one class present — return neutral defaults
+        return {
+            "threshold": 0.5,
+            "fpr": 0.0,
+            "tpr": 1.0,
+            "method": "single_class_fallback",
+            "eer_threshold": 0.5,
+            "eer": 0.0,
+        }
+
+    fpr_curve, tpr_curve, thresholds = roc_curve(y_true, y_probs, pos_label=1)
+    eer, eer_threshold = compute_equal_error_rate(y_true, y_probs)
+
+    # Candidates: all ROC points where FPR is within budget
+    # roc_curve returns arrays in *ascending* threshold order (sklearn convention),
+    # so we simply mask and select the best TPR among eligible points.
+    eligible_mask = fpr_curve <= target_fpr
+    if np.any(eligible_mask):
+        eligible_tprs = tpr_curve[eligible_mask]
+        eligible_fprs = fpr_curve[eligible_mask]
+        eligible_thresholds = thresholds[eligible_mask]
+
+        # Best = highest TPR among eligible (ties broken by highest threshold → fewer FPs)
+        best_idx = np.argmax(eligible_tprs)
+        chosen_threshold = float(eligible_thresholds[best_idx])
+        chosen_fpr = float(eligible_fprs[best_idx])
+        chosen_tpr = float(eligible_tprs[best_idx])
+        method = "fpr_constrained"
+    else:
+        # Fallback: use EER threshold — balanced FPR/FNR, no budget respected
+        chosen_threshold = float(eer_threshold)
+        # Find the ROC point closest to the EER threshold
+        eer_idx = np.nanargmin(np.abs(thresholds - eer_threshold))
+        chosen_fpr = float(fpr_curve[eer_idx])
+        chosen_tpr = float(tpr_curve[eer_idx])
+        method = "eer_fallback"
+
+    return {
+        "threshold": round(chosen_threshold, 6),
+        "fpr": round(chosen_fpr, 4),
+        "tpr": round(chosen_tpr, 4),
+        "method": method,
+        "eer_threshold": round(float(eer_threshold), 6),
+        "eer": round(float(eer), 4),
+    }
+
+
 def compute_equal_error_rate(y_true: np.ndarray, y_scores: np.ndarray) -> Tuple[float, float]:
     """
     Computes the Equal Error Rate (EER) where FPR == FNR, and corresponding threshold.

@@ -39,6 +39,7 @@ def build_model(
             pretrained=pretrained,
             num_classes=num_classes,
             dropout=dropout,
+            freeze_backbone_stages=kwargs.pop("freeze_backbone_stages", 0),
             **kwargs,
         )
     elif model_type == "frequency":

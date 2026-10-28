@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from models import build_model
 from utils.dataset_loader import DeepfakeFairnessDataset, get_default_transforms
-from utils.metrics import FairnessAuditor, compute_binary_metrics
+from utils.metrics import FairnessAuditor, compute_binary_metrics, find_optimal_threshold
 
 
 def parse_args():
@@ -68,6 +68,9 @@ def evaluate_model(
     auditor = FairnessAuditor(threshold=threshold)
     audit_results = auditor.audit(all_targets, all_probs, meta_df)
     audit_results["predictions_df"] = meta_df.assign(y_true=all_targets, y_prob=all_probs)
+    # Attach raw arrays so callers can run threshold search without re-running inference
+    audit_results["_y_true_raw"] = all_targets
+    audit_results["_y_prob_raw"] = all_probs
     return audit_results
 
 
@@ -159,7 +162,36 @@ def main():
     audit_results = evaluate_model(model, loader, device, threshold=args.threshold)
     auditor = FairnessAuditor(threshold=args.threshold)
 
-    # 4. Print Summary to Console
+    # 4. Compute Optimal Operating Threshold (FPR ≤ 5%)
+    y_true_raw = audit_results.pop("_y_true_raw")
+    y_prob_raw = audit_results.pop("_y_prob_raw")
+
+    opt_result = find_optimal_threshold(y_true_raw, y_prob_raw, target_fpr=0.05)
+    optimal_threshold = opt_result["threshold"]
+
+    print("\n--- Optimal Threshold (FPR-Constrained ≤ 5%) ---")
+    print(f"  Method        : {opt_result['method']}")
+    print(f"  Threshold     : {optimal_threshold:.6f}")
+    print(f"  FPR @ thresh  : {opt_result['fpr']:.4f}  (budget: 0.05)")
+    print(f"  TPR @ thresh  : {opt_result['tpr']:.4f}")
+    print(f"  EER           : {opt_result['eer']:.4f}  (EER threshold: {opt_result['eer_threshold']:.6f})")
+
+    # Persist the calibrated threshold back into the checkpoint so app.py can load it.
+    try:
+        checkpoint_data = torch.load(args.model_path, map_location="cpu")
+        if isinstance(checkpoint_data, dict):
+            checkpoint_data["optimal_threshold"] = optimal_threshold
+            checkpoint_data["threshold_method"] = opt_result["method"]
+            checkpoint_data["threshold_fpr"] = opt_result["fpr"]
+            checkpoint_data["threshold_tpr"] = opt_result["tpr"]
+            torch.save(checkpoint_data, args.model_path)
+            print(f"  Saved optimal_threshold={optimal_threshold:.6f} → {args.model_path}")
+        else:
+            print("  [WARN] Checkpoint is not a dict; skipping threshold write-back.")
+    except Exception as e:
+        print(f"  [WARN] Could not write threshold back to checkpoint: {e}")
+
+    # 5. Print Summary to Console
     print("\n--- Overall Performance Metrics ---")
     for k, v in audit_results["overall_metrics"].items():
         print(f"  {k:15s}: {v}")
@@ -172,12 +204,16 @@ def main():
     for k, v in audit_results["gender_fairness_disparities"].items():
         print(f"  {k:15s}: {v}")
 
-    # 5. Export Summary CSV
+    # 6. Export Summary CSV
     summary_rows = []
-    # Overall row
+    # Overall row — include optimal threshold metadata
     overall_dict = audit_results["overall_metrics"].copy()
     overall_dict["category"] = "Overall"
     overall_dict["group_name"] = "All"
+    overall_dict["optimal_threshold"] = optimal_threshold
+    overall_dict["threshold_method"] = opt_result["method"]
+    overall_dict["threshold_fpr"] = opt_result["fpr"]
+    overall_dict["threshold_tpr"] = opt_result["tpr"]
     summary_rows.append(overall_dict)
 
     # Monk tone rows
@@ -199,14 +235,25 @@ def main():
     summary_df.to_csv(summary_csv_path, index=False)
     print(f"\nSaved structured evaluation summary table to: {summary_csv_path}")
 
-    # 6. Export Markdown Audit Report
-    report_md = auditor.generate_markdown_report(audit_results)
+    # 7. Export Markdown Audit Report — prepend threshold section
+    opt_section = (
+        "## Optimal Operating Threshold\n\n"
+        f"| Parameter | Value |\n"
+        f"| :--- | :--- |\n"
+        f"| **Threshold** | `{optimal_threshold:.6f}` |\n"
+        f"| **Method** | `{opt_result['method']}` |\n"
+        f"| **FPR @ threshold** | `{opt_result['fpr']:.4f}` |\n"
+        f"| **TPR @ threshold** | `{opt_result['tpr']:.4f}` |\n"
+        f"| **EER** | `{opt_result['eer']:.4f}` |\n"
+        f"| **EER threshold** | `{opt_result['eer_threshold']:.6f}` |\n\n"
+    )
+    report_md = opt_section + auditor.generate_markdown_report(audit_results)
     report_path = os.path.join(args.output_dir, "fairness_audit_report.md")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report_md)
     print(f"Saved detailed fairness markdown report to: {report_path}")
 
-    # 7. Generate diagnostic plots if requested
+    # 8. Generate diagnostic plots if requested
     if args.plot:
         plot_path = os.path.join(args.output_dir, "fairness_disparity_plots.png")
         generate_evaluation_plots(audit_results, plot_path)

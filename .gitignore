@@ -1,81 +1,66 @@
-# ========================
-# Python
-# ========================
+# ── Python runtime ────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 
-# ========================
-# Virtual Environments
-# ========================
-venv/
+# ── Virtual environments ───────────────────────────────────────────
 .venv/
+venv/
 ENV/
 env/
 
-# ========================
-# PyTorch Model Weights (large binary files)
-# ========================
+# ── PyTorch model weights (large binaries — use Git LFS or DVC) ───
 checkpoints/
 *.pt
 *.pth
 *.onnx
 
-# ========================
-# Data — Raw images (do NOT track actual image files)
-# ========================
-data/mock_dataset/images/
+# ── Raw image datasets (100k+ files, never commit) ────────────────
+dataset/imdb_wiki/
+dataset/StableDiffusion1.5_wiki_processed_process/
 data/raw/
 data/processed/
 images/
-AI-Face-downloaded/
 sample_images/
 
-# ========================
-# Dataset image folders (too large for git — 200k+ images)
-# ========================
-dataset/imdb_wiki/
-dataset/StableDiffusion1.5_wiki_processed_process/
+# ── Results: keep audit artifacts, ignore raw logs & run files ────
+# (evaluation_summary.csv, fairness_audit_report.md,
+#  fairness_disparity_plots.png, training_history.csv ARE tracked)
+results/*.log
+results/*.txt
+results/train_*.txt
 
-# ========================
-# Large Dataset CSVs (30k+ rows, track only small sample)
-# ========================
-dataset/train_subset.csv
-dataset/test_subset.csv
-dataset/train_subset_10k.csv
+# ── Test / CI caches ───────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
-# ========================
-# Results & Logs (auto-generated, don't track)
-# ========================
-results/
-logs/
-runs/
-.wandb/
-benchmark_results/
-inference_results/
-
-# ========================
-# Build & Package
-# ========================
+# ── Build & packaging ──────────────────────────────────────────────
 build/
 dist/
 *.egg-info/
 .eggs/
 wheels/
 
-# ========================
-# IDE & OS
-# ========================
+# ── IDE & OS ───────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.DS_Store
 Thumbs.db
 *.swp
+*.swo
 
-# ========================
-# Jupyter
-# ========================
+# ── Jupyter ────────────────────────────────────────────────────────
 .ipynb_checkpoints/
 *.ipynb
+
+# ── W&B / MLflow experiment tracking ──────────────────────────────
+.wandb/
+mlruns/
+runs/
+logs/
+benchmark_results/
+inference_results/
