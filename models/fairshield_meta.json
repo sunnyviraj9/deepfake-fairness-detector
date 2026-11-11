@@ -1,0 +1,25 @@
+{
+  "model_type": "spatial",
+  "backbone": "efficientnet_b0",
+  "optimal_threshold": 0.146339,
+  "threshold_fpr": 0.0476,
+  "threshold_tpr": 0.9988,
+  "threshold_method": "fpr_constrained",
+  "val_auc": 0.9987,
+  "monk_F_EO": 0.0515,
+  "epoch": 3,
+  "image_size": 224,
+  "imagenet_mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "imagenet_std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "onnx_input_name": "input",
+  "onnx_output_name": "output",
+  "output_is_logit": true
+}

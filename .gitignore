@@ -17,6 +17,11 @@ checkpoints/
 *.pth
 *.onnx
 
+# ── ONNX model files ───────────────────────────────────────────────
+# models/fairshield_model.onnx is tracked (small, 0.7 MB, needed by browser)
+# Exclude any other large model files
+models/*.onnx_data
+
 # ── Raw image datasets (100k+ files, never commit) ────────────────
 dataset/imdb_wiki/
 dataset/StableDiffusion1.5_wiki_processed_process/
