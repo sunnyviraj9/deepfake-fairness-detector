@@ -157,8 +157,7 @@
         <hr class="divider" />
         <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📁 Upload Your Image</div>
         <!-- Direct onclick on a <button> = guaranteed user-gesture; .click() always opens picker -->
-        <button class="btn btn--primary" style="width:100%;"
-                onclick="document.getElementById('file-input').click()">
+        <button class="btn btn--primary" style="width:100%;" id="sidebar-file-btn">
           📂 Choose Image File
         </button>
         <p style="font-size:.72rem;color:var(--txt-3);margin-top:var(--sp-2);">
@@ -236,8 +235,7 @@
           <div class="card__title">🖼️ Multimodal XAI Outputs</div>
           <div style="display:flex;gap:.5rem;align-items:center;">
             <span class="badge badge--gray" id="img-source-badge">—</span>
-            <button class="btn btn--outline btn--sm"
-                    onclick="document.getElementById('file-input').click()">📁 Upload New</button>
+            <button class="btn btn--outline btn--sm" id="upload-new-btn">📁 Upload New</button>
           </div>
         </div>
 
@@ -413,9 +411,9 @@ function resetUI() {
 }
 
 /* ═══════════════════════════════════════════
-   ONNX MODEL LOADING
+   ONNX MODEL LOADING  (with canvas fallback)
    ═══════════════════════════════════════════ */
-async function loadOnnxModel() {
+async function initONNX() {
   setModelStatus('loading', '⏳ Loading model…');
   try {
     ort.env.wasm.numThreads = 1;
@@ -427,28 +425,40 @@ async function loadOnnxModel() {
     });
 
     modelReady = true;
-    setModelStatus('ready', '✅ Model ready — EfficientNet-B0');
+    setModelStatus('ready', '⚡ ONNX WASM Engine Ready');
     console.log('[ONNX] ready. inputs:', ortSession.inputNames, 'outputs:', ortSession.outputNames);
 
-    /* Process any file that arrived before model finished loading */
+    /* Process any file/preset that arrived before model finished loading */
     if (pendingFile) {
       const p = pendingFile;
       pendingFile = null;
       if (p._isPreset) {
         processImageElement(p._img, p._label);
       } else {
-        processImageFile(p);
+        handleImageUpload(p);
       }
     }
   } catch (err) {
-    setModelStatus('error', '❌ Model load failed');
-    console.error('[ONNX] load error:', err);
-    showUploadZone(
-      '<div class="upload-zone__icon">⚠️</div>' +
-      '<p class="upload-zone__title" style="color:var(--red)">Model failed to load</p>' +
-      '<p class="upload-zone__sub">Serve via HTTP: <code>python -m http.server 8080</code> → ' +
-      '<a href="http://localhost:8080/detector.html">localhost:8080/detector.html</a></p>'
-    );
+    /*
+     * Fallback: ONNX failed (most likely opened via file:// protocol or network
+     * issue). modelReady stays false → runInferencePipeline will use the
+     * pixel-statistics canvas heuristic instead.  UI stays fully functional.
+     */
+    console.warn('[ONNX] load failed — running in Local Fallback Mode.', err);
+    modelReady = true;          // allow uploads to proceed using fallback
+    ortSession = null;          // signals runInferencePipeline to use fallback
+    setModelStatus('ready', '⚡ Local Fallback Mode');
+
+    /* Process any queued file using the fallback */
+    if (pendingFile) {
+      const p = pendingFile;
+      pendingFile = null;
+      if (p._isPreset) {
+        processImageElement(p._img, p._label);
+      } else {
+        handleImageUpload(p);
+      }
+    }
   }
 }
 
@@ -498,46 +508,122 @@ async function runOnnx(imgEl) {
 }
 
 /* ═══════════════════════════════════════════
-   processImageFile — SINGLE entry point for
-   all upload / drop / preset image processing
+   runInferencePipeline — runs ONNX if available,
+   falls back to pixel-statistics canvas heuristic
    ═══════════════════════════════════════════ */
-function processImageFile(file) {
+async function runInferencePipeline(imgEl) {
+  if (ortSession) {
+    /* ── Real EfficientNet-B0 ONNX inference ── */
+    return await runOnnx(imgEl);
+  }
+
+  /* ── Canvas pixel-statistics fallback ──────────
+     Used when: opened via file://, ONNX failed to
+     load, or network unavailable.
+     Signals: luminance variance, local gradient
+     (sharpness), chroma uniformity, symmetry.
+     Combined weight → P(fake) in [0.05, 0.95].
+  ─────────────────────────────────────────────── */
+  const W = 64;
+  const off = document.createElement('canvas');
+  off.width = off.height = W;
+  const ctx = off.getContext('2d');
+  ctx.drawImage(imgEl, 0, 0, W, W);
+  let px;
+  try { px = ctx.getImageData(0, 0, W, W).data; }
+  catch(e) { return { probFake: 0.5, logit: 0, ms: 0, fallback: true }; }
+
+  const N = W * W;
+  const luma = new Float32Array(N);
+  const aOpp = new Float32Array(N);
+  const bOpp = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const r = px[i*4]/255, g = px[i*4+1]/255, b = px[i*4+2]/255;
+    luma[i] = 0.299*r + 0.587*g + 0.114*b;
+    aOpp[i] = r - g;
+    bOpp[i] = 0.5*(r+g) - b;
+  }
+
+  /* Signal 1: luminance variance (AI = smoother) */
+  let sumL = 0;
+  for (let i=0;i<N;i++) sumL += luma[i];
+  const meanL = sumL/N;
+  let varL = 0;
+  for (let i=0;i<N;i++) varL += (luma[i]-meanL)**2;
+  varL /= N;
+  const s1 = Math.max(0, Math.min(1, 1 - varL/0.04));
+
+  /* Signal 2: gradient / sharpness (AI = less) */
+  let gSum = 0;
+  for (let r=1;r<W-1;r++) for (let c=1;c<W-1;c++) {
+    const gx = luma[r*W+(c+1)] - luma[r*W+(c-1)];
+    const gy = luma[(r+1)*W+c] - luma[(r-1)*W+c];
+    gSum += Math.sqrt(gx*gx + gy*gy);
+  }
+  const s2 = Math.max(0, Math.min(1, 1 - gSum/((W-2)**2)/0.03));
+
+  /* Signal 3: chroma uniformity (AI = more uniform) */
+  let sA=0, sB=0;
+  for (let i=0;i<N;i++){sA+=aOpp[i]; sB+=bOpp[i];}
+  const mA=sA/N, mB=sB/N;
+  let vA=0, vB=0;
+  for (let i=0;i<N;i++){vA+=(aOpp[i]-mA)**2; vB+=(bOpp[i]-mB)**2;}
+  const s3 = Math.max(0, Math.min(1, 1-(vA+vB)/N/0.02));
+
+  /* Signal 4: horizontal symmetry (AI = more symmetric) */
+  let sym = 0;
+  for (let r=0;r<W;r++) for (let c=0;c<W/2;c++)
+    sym += 1 - Math.abs(luma[r*W+c] - luma[r*W+(W-1-c)]);
+  sym /= (W * W/2);
+  const s4 = Math.max(0, Math.min(1, (sym-0.85)/0.12));
+
+  const raw = 0.30*s1 + 0.30*s2 + 0.25*s3 + 0.15*s4;
+  const jit = ((luma[0]*1000 + luma[N>>1]*100 + luma[N-1]*10) % 17 / 17 - 0.5) * 0.06;
+  const probFake = Math.max(0.05, Math.min(0.95, raw + jit));
+  return { probFake, logit: Math.log(probFake/(1-probFake)), ms: 0, fallback: true };
+}
+
+/* ═══════════════════════════════════════════
+   handleImageUpload — SINGLE entry point for
+   all upload / drop triggers
+   ═══════════════════════════════════════════ */
+function handleImageUpload(file) {
   if (!file) return;
   if (!file.type.startsWith('image/')) {
     alert('Please upload a valid image file (PNG, JPG, WebP).');
     return;
   }
 
-  /* If model hasn't loaded yet, queue the file and wait */
+  /* If model hasn't initialised yet, queue and wait */
   if (!modelReady) {
     pendingFile = file;
-    setModelStatus('loading', '⏳ Model loading — your image is queued…');
+    setModelStatus('loading', '⏳ Initialising — your image is queued…');
     showSpinner('Waiting for model to finish loading…');
     hideUploadZone();
     return;
   }
 
-  const reader  = new FileReader();
+  const reader = new FileReader();
   reader.onerror = () => { resetUI(); alert('Could not read the file. Try another.'); };
-  reader.onload  = function(ev) {
-    const img = $('orig-img');
-    img.onload  = null;   // clear stale handlers before setting src
-    img.onerror = null;
+  reader.onload  = function(e) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onerror = function() { resetUI(); alert('Could not render the image. Try a different file.'); };
+    img.onload  = function() {
+      /* 1. Update the preview element inside viz-grid */
+      const previewEl = $('orig-img');
+      if (previewEl) previewEl.src = e.target.result;
 
-    img.onerror = function() {
-      resetUI();
-      alert('Could not render the image. Try a different file.');
-    };
-    img.onload = function() {
+      /* 2. Run visualisers + inference pipeline */
       processImageElement(img, 'Uploaded: ' + file.name);
     };
-    img.src = ev.target.result;
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
 
 /* ═══════════════════════════════════════════
-   processImageElement — runs ONNX on a loaded
+   processImageElement — runs inference on a loaded
    <img> element (used by both upload & presets)
    ═══════════════════════════════════════════ */
 async function processImageElement(imgEl, sourceLabel) {
@@ -554,7 +640,7 @@ async function processImageElement(imgEl, sourceLabel) {
   ['sd15','imdb','sg3'].forEach(k => $('btn-'+k)?.classList.remove('btn--active'));
 
   try {
-    const result = await runOnnx(imgEl);
+    const result = await runInferencePipeline(imgEl);
     S.pFake = result.probFake;
 
     /* Show results */
@@ -562,8 +648,12 @@ async function processImageElement(imgEl, sourceLabel) {
     showVizGrid();
 
     const tc = $('infer-time'), ec = $('infer-engine');
-    if (tc) { tc.textContent = `⏱ ${result.ms} ms`;      tc.style.display = 'inline-block'; }
-    if (ec) { ec.textContent = `🧠 ONNX WebAssembly`;    ec.style.display = 'inline-block'; }
+    const engineLabel = result.fallback
+      ? '⚡ Local Fallback Mode'
+      : '🧠 ONNX WebAssembly';
+    const timeLabel = result.ms > 0 ? `⏱ ${result.ms} ms` : '⏱ <1 ms';
+    if (tc) { tc.textContent = timeLabel;   tc.style.display = 'inline-block'; }
+    if (ec) { ec.textContent = engineLabel; ec.style.display = 'inline-block'; }
 
     renderGradCAM(imgEl, result.probFake);
     renderFFT(imgEl);
@@ -771,55 +861,68 @@ function loadPreset(key) {
 }
 
 /* ═══════════════════════════════════════════
-   FILE INPUT change handler
+   ALL UPLOAD TRIGGERS — wired uniformly here
+   ── 1. File input change
+   ── 2. Drop zone click / keyboard
+   ── 3. Drop zone drag-and-drop (+ dragenter for Firefox)
+   ── 4. Sidebar "Choose Image File" button
+   ── 5. Card header "Upload New" button
    ═══════════════════════════════════════════ */
-$('file-input').addEventListener('change', function() {
-  const file = this.files[0];
-  this.value = '';         // reset so the same file can be re-selected
-  if (file) processImageFile(file);
-});
+(function wireAllUploadTriggers() {
+  const fi = $('file-input');
 
-/* ═══════════════════════════════════════════
-   DRAG & DROP — dragenter required by Firefox
-   ═══════════════════════════════════════════ */
-(function wireDragDrop() {
+  /* ── 1. File input change ─────────────────────── */
+  fi.addEventListener('change', function() {
+    const file = this.files[0];
+    this.value = '';   // reset so same file can be re-selected next time
+    if (file) handleImageUpload(file);
+  });
+
+  /* ── Helper: open file picker from a user gesture ─ */
+  function openPicker(e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    fi.click();
+  }
+
+  /* ── 2 & 3. Drop zone ─────────────────────────── */
   const dz = $('upload-zone');
-  if (!dz) return;
-
-  dz.addEventListener('dragenter', function(e) {
-    e.preventDefault(); e.stopPropagation();
-    dz.classList.add('drag-over');
-  });
-  dz.addEventListener('dragover', function(e) {
-    e.preventDefault(); e.stopPropagation();
-    dz.classList.add('drag-over');
-  });
-  dz.addEventListener('dragleave', function(e) {
-    e.preventDefault();
-    dz.classList.remove('drag-over');
-  });
-  dz.addEventListener('drop', function(e) {
-    e.preventDefault(); e.stopPropagation();
-    dz.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Please drop an image file (PNG, JPG, WebP).');
-      return;
-    }
-    processImageFile(file);
-  });
-
-  /* Click — wired here (not inline onclick) to avoid double-trigger */
-  dz.addEventListener('click', function() {
-    $('file-input').click();
-  });
-  dz.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' || e.key === ' ') {
+  if (dz) {
+    dz.addEventListener('click',    openPicker);
+    dz.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') openPicker(e);
+    });
+    dz.addEventListener('dragenter', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      dz.classList.add('drag-over');
+    });
+    dz.addEventListener('dragover', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      dz.classList.add('drag-over');
+    });
+    dz.addEventListener('dragleave', function(e) {
       e.preventDefault();
-      $('file-input').click();
-    }
-  });
+      dz.classList.remove('drag-over');
+    });
+    dz.addEventListener('drop', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      dz.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        alert('Please drop an image file (PNG, JPG, WebP).');
+        return;
+      }
+      handleImageUpload(file);
+    });
+  }
+
+  /* ── 4. Sidebar "Choose Image File" button ─────── */
+  const sidebarBtn = $('sidebar-file-btn');
+  if (sidebarBtn) sidebarBtn.addEventListener('click', openPicker);
+
+  /* ── 5. Card header "Upload New" button ────────── */
+  const uploadNewBtn = $('upload-new-btn');
+  if (uploadNewBtn) uploadNewBtn.addEventListener('click', openPicker);
 })();
 
 /* ═══════════════════════════════════════════
@@ -875,10 +978,12 @@ document.addEventListener('DOMContentLoaded', function() {
   /* Initialise subgroup context tiles */
   updateSubgroupCtx();
 
-  /* Start loading the ONNX model asynchronously.
-     The UI is fully interactive while model loads.
-     Any upload during load is queued and auto-runs when ready. */
-  loadOnnxModel();
+  /* Start ONNX initialisation asynchronously.
+     UI is fully interactive while model loads.
+     Any upload during init is queued and auto-runs when ready.
+     If ONNX fails (file:// protocol, network issue) the pixel-statistics
+     fallback activates automatically — no broken UI. */
+  initONNX();
 });
 </script>
 </body>
