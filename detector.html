@@ -131,6 +131,22 @@
         </button>
         <p style="font-size:.72rem;color:var(--txt-3);margin-top:var(--sp-2);">JPG / PNG / WebP — max ~10 MB</p>
 
+        <div style="margin-top:var(--sp-3);padding:var(--sp-3);background:#eff6ff;
+                    border:1px solid #bfdbfe;border-radius:8px;">
+          <div style="font-size:.75rem;font-weight:700;color:#1d4ed8;margin-bottom:.35rem;">
+            🧠 Real Model (EfficientNet-B0)
+          </div>
+          <a href="http://localhost:8501" target="_blank"
+             style="display:block;background:#2563eb;color:#fff;text-align:center;
+                    padding:.4rem;border-radius:6px;font-size:.8rem;font-weight:700;
+                    text-decoration:none;">
+            Open Streamlit App →
+          </a>
+          <p style="font-size:.68rem;color:#3b82f6;margin-top:.3rem;">
+            Accurate SD / GAN detection · AUC 0.9987
+          </p>
+        </div>
+
         <hr class="divider" />
         <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📍 Subgroup Context</div>
         <div class="sg-tiles">
@@ -167,18 +183,24 @@
         <div class="banner-score" id="banner-score" style="color:var(--txt-3)">—</div>
       </div>
 
-      <!-- Demo mode notice -->
-      <div style="background:var(--amber-lt);border:1px solid var(--amber-bd);border-radius:var(--r-md);
-                  padding:.65rem 1rem;margin-bottom:var(--sp-5);font-size:.8rem;color:#78350f;
-                  display:flex;align-items:flex-start;gap:.6rem;">
-        <span style="font-size:1rem;flex-shrink:0;">⚡</span>
-        <span>
-          <strong>Browser Demo Mode</strong> — scores are estimated from pixel statistics
-          (luminance variance, sharpness, chroma uniformity, symmetry).
-          For <strong>real PyTorch inference</strong> run
-          <code style="background:rgba(0,0,0,.08);padding:1px 5px;border-radius:3px;">streamlit run app.py</code>.
-          Presets use pre-set scores from the trained model.
-        </span>
+      <!-- Demo mode notice — updated to be clear and link to real app -->
+      <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;
+                  padding:.85rem 1.1rem;margin-bottom:var(--sp-5);font-size:.85rem;color:#78350f;">
+        <div style="font-weight:800;margin-bottom:.35rem;font-size:.95rem;">
+          ⚡ Browser Demo — Pixel Heuristic Only
+        </div>
+        <p style="line-height:1.6;margin-bottom:.5rem;">
+          This page uses a <strong>client-side pixel-statistics estimate</strong>
+          (luminance variance, sharpness, symmetry). It <strong>cannot reliably detect
+          Stable Diffusion or high-quality GAN images</strong> — those require the real
+          EfficientNet-B0 model.
+        </p>
+        <a href="http://localhost:8501" target="_blank"
+           style="display:inline-flex;align-items:center;gap:.4rem;background:#2563eb;
+                  color:#fff;padding:.4rem .9rem;border-radius:6px;font-weight:700;
+                  font-size:.82rem;text-decoration:none;">
+          🚀 Use Real Model → Open Streamlit App (localhost:8501)
+        </a>
       </div>
 
       <!-- Prob bars -->
