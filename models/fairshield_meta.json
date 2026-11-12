@@ -8,7 +8,7 @@
   "val_auc": 0.9987,
   "monk_F_EO": 0.0515,
   "epoch": 3,
-  "image_size": 224,
+  "image_size": 96,
   "imagenet_mean": [
     0.485,
     0.456,

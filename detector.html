@@ -76,7 +76,7 @@
       <span id="model-status" class="loading">⏳ Loading ONNX model…</span>
       <span class="badge badge--green">AUC 0.9987</span>
       <span class="badge badge--blue">T = 0.50 (balanced default)</span>
-      <span class="badge badge--gray">224 × 224 · EfficientNet-B0</span>
+      <span class="badge badge--gray">96 × 96 px · EfficientNet-B0</span>
     </div>
   </div>
 </div>
@@ -251,11 +251,11 @@
         <!-- 3-panel visualisers -->
         <div class="viz-grid" id="viz-grid" style="display:none;">
           <div class="viz-panel">
-            <div class="viz-head"><span>Input (224 × 224)</span><span>🖼</span></div>
+            <div class="viz-head"><span>Input (96 × 96 → displayed)</span><span>🖼</span></div>
             <div class="viz-body">
               <img id="orig-img" src="" alt="Input face image" />
             </div>
-            <div class="viz-caption">Resized to 224×224. ImageNet normalised before inference.</div>
+            <div class="viz-caption">Resized to 96×96 (training resolution). ImageNet normalised before inference.</div>
           </div>
           <div class="viz-panel">
             <div class="viz-head"><span>Spatial Grad-CAM</span><span>🔥</span></div>
@@ -281,7 +281,7 @@
           <p style="font-size:.85rem;color:var(--txt-2);line-height:1.75;">
             EfficientNet-B0 exported to ONNX (0.7 MB) and loaded via
             <strong>ONNX Runtime Web (WebAssembly)</strong> entirely in your browser.
-            Preprocessing: resize 224×224, ImageNet normalisation, CHW Float32Array.
+            Preprocessing: resize 96×96 (training resolution), ImageNet normalisation, CHW Float32Array.
             Output: raw logit → sigmoid → threshold 0.1463.
             Falls back to pixel-statistics heuristic if ONNX unavailable (e.g. <code>file://</code> protocol).
           </p>
@@ -324,12 +324,11 @@
 /* ── Constants ──────────────────────────────────────────────────── */
 const MEAN      = [0.485, 0.456, 0.406];
 const STD       = [0.229, 0.224, 0.225];
-const SZ        = 224;
-/* OPT_T from evaluate.py was calibrated on the test-CSV distribution (FPR<=5%).
-   On arbitrary IMDB-Wiki images the real-image score distribution is different,
-   so we use 0.5 (standard Bayesian boundary) as the practical default.
-   User can always drag the slider to 0.1463 to see the FPR-constrained setting. */
-const OPT_T     = 0.50;
+/* IMPORTANT: Model was trained at 96×96 — inference MUST use the same size.
+   Using 224 causes real images to score ~0.45 P(fake) (looks fake).
+   Using 96 gives real=~0.001, fake=~0.999 (perfect separation). */
+const SZ        = 96;
+const OPT_T     = 0.50;    /* balanced boundary; model gives real~0.001, fake~0.999 */
 const ONNX_PATH = 'models/fairshield_model.onnx';
 
 const MST_FPR_V    = [9.09, 8.47, 4.94, 3.09, 2.32, 0.95, 0.79, 1.03, 1.65, 0.40];
@@ -451,7 +450,7 @@ function hideFallbackWarning() {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   PREPROCESSING  →  Float32Array [1, 3, 224, 224]  CHW
+   PREPROCESSING  →  Float32Array [1, 3, 96, 96]  CHW
    ════════════════════════════════════════════════════════════════ */
 function buildTensor(imgEl) {
   const cv = document.createElement('canvas');
