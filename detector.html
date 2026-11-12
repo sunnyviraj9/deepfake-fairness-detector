@@ -12,10 +12,11 @@
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
 
   <style>
-    /* File input off-screen — .click() always works, never intercepted */
+    /* File input: visually hidden but fully clickable via label association.
+       DO NOT use pointer-events:none — that blocks .click() in some browsers. */
     #file-input {
       position: fixed; top: -9999px; left: -9999px;
-      width: 1px; height: 1px; opacity: 0; pointer-events: none;
+      width: 1px; height: 1px; opacity: 0;
     }
     .upload-zone { cursor: pointer; user-select: none; }
     .upload-zone.drag-over {
@@ -147,11 +148,11 @@
 
         <hr class="divider" />
         <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📁 Upload Your Image</div>
-        <!-- Inline onclick on button = guaranteed user-gesture in all browsers -->
-        <button class="btn btn--primary" style="width:100%;"
-                onclick="document.getElementById('file-input').click()">
+        <!-- Using <label for="file-input"> opens the picker natively in every browser,
+             every protocol (file://, http://, https://) without any JavaScript -->
+        <label for="file-input" class="btn btn--primary" style="width:100%;justify-content:center;cursor:pointer;">
           📂 Choose Image File
-        </button>
+        </label>
         <p style="font-size:.72rem;color:var(--txt-3);margin-top:var(--sp-2);">
           JPG / PNG / WebP · runs real EfficientNet-B0 inference
         </p>
@@ -226,20 +227,20 @@
           <div class="card__title">🖼️ Multimodal XAI Outputs</div>
           <div style="display:flex;gap:.5rem;align-items:center;">
             <span class="badge badge--gray" id="img-source-badge">—</span>
-            <button class="btn btn--outline btn--sm"
-                    onclick="document.getElementById('file-input').click()">
+            <label for="file-input" class="btn btn--outline btn--sm" style="cursor:pointer;">
               📁 Upload New
-            </button>
+            </label>
           </div>
         </div>
 
-        <!-- Drop zone -->
-        <div class="upload-zone" id="upload-zone" tabindex="0"
-             role="button" aria-label="Click or drag and drop a face image">
+        <!-- Drop zone — label association makes it work without JS on file://  -->
+        <label class="upload-zone" id="upload-zone" for="file-input" tabindex="0"
+               role="button" aria-label="Click or drag and drop a face image"
+               onkeydown="if(event.key==='Enter'||event.key===' ')this.click()">
           <div class="upload-zone__icon">📤</div>
           <p class="upload-zone__title">Click here or drag &amp; drop a face image</p>
           <p class="upload-zone__sub">PNG · JPG · WebP · real EfficientNet-B0 inference via ONNX</p>
-        </div>
+        </label>
 
         <!-- Spinner -->
         <div id="infer-loading" style="display:none;text-align:center;padding:var(--sp-8);">
@@ -772,30 +773,29 @@ function loadPreset(key) {
   const fi = el('file-input');
   const dz = el('upload-zone');
 
-  /* 1. File input change */
+  /* 1. File input change — fires for both label-click and drop */
   fi.addEventListener('change', function() {
     const f = this.files[0];
     this.value = '';   // allow re-selecting same file
     if (f) handleImageUpload(f);
   });
 
-  /* Helper — open picker from a guaranteed user-gesture context */
-  function openPicker(e) {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    fi.click();
-  }
-
-  /* 2 & 3. Drop zone click + keyboard */
+  /* 2. Drop zone drag-and-drop (dragenter required for Firefox).
+        Note: we do NOT add a 'click' listener here — the zone is a <label>
+        so clicking it opens the file picker natively without any JS. */
   if (dz) {
-    dz.addEventListener('click',   openPicker);
-    dz.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') openPicker(e);
+    dz.addEventListener('dragenter', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      dz.classList.add('drag-over');
     });
-
-    /* 4. Drag and drop */
-    dz.addEventListener('dragenter', function(e) { e.preventDefault(); e.stopPropagation(); dz.classList.add('drag-over'); });
-    dz.addEventListener('dragover',  function(e) { e.preventDefault(); e.stopPropagation(); dz.classList.add('drag-over'); });
-    dz.addEventListener('dragleave', function(e) { e.preventDefault(); dz.classList.remove('drag-over'); });
+    dz.addEventListener('dragover', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      dz.classList.add('drag-over');
+    });
+    dz.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      dz.classList.remove('drag-over');
+    });
     dz.addEventListener('drop', function(e) {
       e.preventDefault(); e.stopPropagation();
       dz.classList.remove('drag-over');
@@ -806,7 +806,7 @@ function loadPreset(key) {
     });
   }
 
-  /* Preset buttons */
+  /* 3. Preset buttons */
   ['sd15','imdb','sg3'].forEach(k => {
     el('btn-'+k)?.addEventListener('click', () => loadPreset(k));
   });
