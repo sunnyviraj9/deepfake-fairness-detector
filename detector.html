@@ -75,7 +75,7 @@
     <div class="page-header__meta">
       <span id="model-status" class="loading">⏳ Loading ONNX model…</span>
       <span class="badge badge--green">AUC 0.9987</span>
-      <span class="badge badge--blue">T = 0.1463 (FPR ≤ 5%)</span>
+      <span class="badge badge--blue">T = 0.50 (balanced default)</span>
       <span class="badge badge--gray">224 × 224 · EfficientNet-B0</span>
     </div>
   </div>
@@ -107,11 +107,11 @@
         <div class="form-group">
           <label class="form-label" for="thresh-slider">Decision Threshold <span>(T)</span></label>
           <div class="slider-row">
-            <input type="range" id="thresh-slider" min="0.05" max="0.95" step="0.001" value="0.146339" />
-            <span class="slider-badge mono" id="thresh-badge">0.1463</span>
+            <input type="range" id="thresh-slider" min="0.05" max="0.95" step="0.001" value="0.50" />
+            <span class="slider-badge mono" id="thresh-badge">0.5000</span>
           </div>
           <small style="font-size:.72rem;color:var(--txt-3);margin-top:.3rem;display:block;">
-            Optimal: <strong>T = 0.1463</strong> → FPR 4.76% · TPR 99.88%
+            Default: <strong>T = 0.50</strong> (balanced) · FPR-calibrated: 0.1463
           </small>
         </div>
 
@@ -325,7 +325,11 @@
 const MEAN      = [0.485, 0.456, 0.406];
 const STD       = [0.229, 0.224, 0.225];
 const SZ        = 224;
-const OPT_T     = 0.146339;
+/* OPT_T from evaluate.py was calibrated on the test-CSV distribution (FPR<=5%).
+   On arbitrary IMDB-Wiki images the real-image score distribution is different,
+   so we use 0.5 (standard Bayesian boundary) as the practical default.
+   User can always drag the slider to 0.1463 to see the FPR-constrained setting. */
+const OPT_T     = 0.50;
 const ONNX_PATH = 'models/fairshield_model.onnx';
 
 const MST_FPR_V    = [9.09, 8.47, 4.94, 3.09, 2.32, 0.95, 0.79, 1.03, 1.65, 0.40];
@@ -390,12 +394,14 @@ async function initONNX() {
       executionProviders:    ['wasm'],
       graphOptimizationLevel:'all',
     });
-    setStatus('ready', '⚡ ONNX Engine Ready — EfficientNet-B0');
+    setStatus('ready', '✅ ONNX Engine Ready — EfficientNet-B0');
+    hideFallbackWarning();
     console.log('[ONNX] ready. inputs:', onnxSession.inputNames);
   } catch (err) {
     console.warn('[ONNX] load failed — using pixel-statistics fallback:', err.message);
     onnxSession = null;
-    setStatus('fallback', '⚡ Local Fallback Mode');
+    setStatus('fallback', '⚠️ Fallback Mode — Results Inaccurate');
+    showFallbackWarning();
   }
   isReady = true;
 
@@ -405,6 +411,43 @@ async function initONNX() {
     if (q.type === 'file')   handleImageUpload(q.file);
     if (q.type === 'preset') processImageElement(q.img, q.label);
   }
+}
+
+function showFallbackWarning() {
+  let w = el('fallback-warning');
+  if (!w) {
+    w = document.createElement('div');
+    w.id = 'fallback-warning';
+    w.style.cssText = `
+      position:fixed; top:0; left:0; right:0; z-index:9999;
+      background:#dc2626; color:#fff; text-align:center;
+      padding:.75rem 1rem; font-family:'Plus Jakarta Sans',sans-serif;
+      font-size:.88rem; font-weight:600; line-height:1.5;
+      box-shadow:0 2px 8px rgba(0,0,0,.3);
+    `;
+    w.innerHTML = `
+      ⚠️ <strong>ONNX model could not load — results are INACCURATE (pixel heuristic only).</strong>
+      Stable Diffusion images will show as REAL. &nbsp;|&nbsp;
+      <strong>Fix:</strong> open this page at
+      <a href="http://127.0.0.1:8080/detector.html" style="color:#fde68a;text-decoration:underline;">
+        http://127.0.0.1:8080/detector.html
+      </a>
+      &nbsp;(run: <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px;">python -m http.server 8080</code> in project folder)
+      &nbsp;
+      <button onclick="document.getElementById('fallback-warning').style.display='none'"
+              style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);
+                     color:#fff;padding:.2rem .6rem;border-radius:4px;cursor:pointer;font-size:.82rem;
+                     margin-left:.5rem;">✕ Dismiss</button>
+    `;
+    document.body.prepend(w);
+  } else {
+    w.style.display = '';
+  }
+}
+
+function hideFallbackWarning() {
+  const w = el('fallback-warning');
+  if (w) w.style.display = 'none';
 }
 
 /* ════════════════════════════════════════════════════════════════

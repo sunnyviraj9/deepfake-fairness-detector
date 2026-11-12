@@ -51,6 +51,8 @@ def parse_args():
                         help="Number of intra-op CPU threads for PyTorch (0 = use torch default).")
     parser.add_argument("--freeze_backbone", type=int, default=0,
                         help="Freeze first N stages of backbone for fast CPU head-only training (0 = no freezing).")
+    parser.add_argument("--resume", type=str, default=None,
+                        help="Path to checkpoint to resume training from (e.g. checkpoints/best_model.pt).")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     return parser.parse_args()
 
@@ -284,6 +286,19 @@ def main():
         freeze_backbone_stages=args.freeze_backbone,
     ).to(device)
 
+    # 2a. Resume from checkpoint if specified
+    start_epoch = 1
+    best_val_auc_resume = -1.0
+    if args.resume and os.path.exists(args.resume):
+        print(f"Resuming from checkpoint: {args.resume}")
+        resume_ck = torch.load(args.resume, map_location=device, weights_only=False)
+        model.load_state_dict(resume_ck["model_state_dict"])
+        start_epoch   = resume_ck.get("epoch", 0) + 1
+        best_val_auc_resume = float(resume_ck.get("val_auc", -1.0))
+        print(f"  Resumed at epoch {start_epoch}, best_val_auc so far: {best_val_auc_resume:.4f}")
+    elif args.resume:
+        print(f"WARNING: --resume path not found: {args.resume}. Starting from scratch.")
+
     # 3. Setup Loss Criterion
     group_weights = {}
     if args.loss_type == "subgroup_reweighted" or args.mitigate_bias:
@@ -302,12 +317,13 @@ def main():
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
 
-    best_val_auc = -1.0
+    best_val_auc = best_val_auc_resume if args.resume else -1.0
     best_f_eo = 999.0
     history = []
 
     start_time = time.time()
-    for epoch in range(1, args.epochs + 1):
+    total_epochs = start_epoch - 1 + args.epochs
+    for epoch in range(start_epoch, total_epochs + 1):
         epoch_start = time.time()
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device, loss_choice)
         val_res = validate(model, val_loader, val_criterion, device)
@@ -320,7 +336,7 @@ def main():
 
         epoch_time = time.time() - epoch_start
         print(
-            f"Epoch [{epoch:02d}/{args.epochs:02d}] ({epoch_time:.1f}s) | "
+            f"Epoch [{epoch:02d}/{total_epochs:02d}] ({epoch_time:.1f}s) | "
             f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
             f"Val Acc: {val_acc:.4f} | Val AUC: {val_auc:.4f} | "
             f"Monk F_EO: {f_eo:.4f}"
