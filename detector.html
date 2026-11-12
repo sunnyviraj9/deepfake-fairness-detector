@@ -8,60 +8,60 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- ONNX Runtime Web — real EfficientNet-B0 inference in WebAssembly -->
+  <!-- ONNX Runtime Web: real EfficientNet-B0 inference in WebAssembly -->
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
 
   <style>
-    /* ── File input: off-screen so .click() always works in every browser ── */
+    /* File input off-screen — .click() always works, never intercepted */
     #file-input {
-      position: fixed;
-      top: -9999px; left: -9999px;
-      width: 1px; height: 1px;
-      opacity: 0; pointer-events: none;
+      position: fixed; top: -9999px; left: -9999px;
+      width: 1px; height: 1px; opacity: 0; pointer-events: none;
     }
-
-    /* ── Upload zone states ───────────────────────────────────────────────── */
-    .upload-zone          { cursor: pointer; user-select: none; }
+    .upload-zone { cursor: pointer; user-select: none; }
     .upload-zone.drag-over {
-      border-color: var(--blue)   !important;
-      background:   var(--blue-lt)!important;
+      border-color: var(--blue) !important;
+      background: var(--blue-lt) !important;
     }
-
-    /* ── Spinner ─────────────────────────────────────────────────────────── */
     .spinner {
-      width: 40px; height: 40px; border-radius: 50%;
+      width: 44px; height: 44px; border-radius: 50%;
       border: 4px solid var(--border);
       border-top-color: var(--blue);
       animation: spin .75s linear infinite;
-      margin: 0 auto var(--sp-3);
+      margin: 0 auto var(--sp-4);
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Model-status pill ───────────────────────────────────────────────── */
     #model-status {
       display: inline-flex; align-items: center; gap: var(--sp-2);
       padding: .28rem .75rem; border-radius: var(--r-full);
       font-size: .78rem; font-weight: 700;
     }
     #model-status.loading { background:var(--amber-lt); color:var(--amber); border:1px solid var(--amber-bd); }
-    #model-status.ready   { background:var(--green-lt);  color:var(--green); border:1px solid var(--green-bd); }
-    #model-status.error   { background:var(--red-lt);    color:var(--red);   border:1px solid var(--red-bd); }
+    #model-status.ready   { background:var(--green-lt); color:var(--green); border:1px solid var(--green-bd); }
+    #model-status.fallback{ background:var(--blue-lt);  color:var(--blue);  border:1px solid var(--blue-bd); }
+    #model-status.error   { background:var(--red-lt);   color:var(--red);   border:1px solid var(--red-bd); }
 
-    /* ── Confidence meter ────────────────────────────────────────────────── */
-    .conf-meter { height:12px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-full); overflow:hidden; margin:var(--sp-2) 0; }
-    .conf-meter__fill { height:100%; border-radius:var(--r-full); transition:width .55s cubic-bezier(.4,0,.2,1); }
-
-    /* ── Timing chips ────────────────────────────────────────────────────── */
-    .time-chip { font-family:var(--font-mono); font-size:.72rem; background:var(--surface-2); border:1px solid var(--border); padding:.15rem .5rem; border-radius:var(--r-sm); color:var(--txt-3); }
+    .conf-meter {
+      height: 12px; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: var(--r-full);
+      overflow: hidden; margin: var(--sp-2) 0;
+    }
+    .conf-meter__fill {
+      height: 100%; border-radius: var(--r-full);
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+    .time-chip {
+      font-family: var(--font-mono); font-size: .72rem;
+      background: var(--surface-2); border: 1px solid var(--border);
+      padding: .15rem .5rem; border-radius: var(--r-sm); color: var(--txt-3);
+    }
   </style>
 </head>
 <body>
 
-<!-- Shared nav (injected by app.js) -->
 <div id="nav-mount"></div>
 
-<!-- ════════ PAGE HEADER ════════ -->
+<!-- PAGE HEADER -->
 <div class="page-header">
   <div class="page-header__inner">
     <p class="page-header__eyebrow">🔍 XAI Deepfake Detector</p>
@@ -72,53 +72,45 @@
       Correctly flags Stable Diffusion, StyleGAN, and other AI-generated faces.
     </p>
     <div class="page-header__meta">
-      <span id="model-status" class="loading">⏳ Loading model…</span>
+      <span id="model-status" class="loading">⏳ Loading ONNX model…</span>
       <span class="badge badge--green">AUC 0.9987</span>
       <span class="badge badge--blue">T = 0.1463 (FPR ≤ 5%)</span>
-      <span class="badge badge--gray">224 × 224 px · EfficientNet-B0</span>
+      <span class="badge badge--gray">224 × 224 · EfficientNet-B0</span>
     </div>
   </div>
 </div>
 
-<!-- ════════ HIDDEN FILE INPUT ════════
-     Placed at body level (not inside any form/overlay) so .click() always works.
-     accept="image/*" is broadest — works on all mobile and desktop browsers.
-     ════════ -->
+<!-- Hidden file input — at body level for maximum browser compatibility -->
 <input type="file" id="file-input" accept="image/*" />
 
-<!-- ════════ MAIN LAYOUT ════════ -->
+<!-- MAIN LAYOUT -->
 <div class="page-body">
   <div class="two-col">
 
-    <!-- ━━━━━━━━━━━━━━━━━━ LEFT SIDEBAR ━━━━━━━━━━━━━━━━━━ -->
+    <!-- LEFT SIDEBAR -->
     <aside>
       <div class="card sidebar-card">
-
         <div class="card__head">
           <div class="card__title">🎛️ Inference Controls</div>
         </div>
 
-        <!-- Model info tile -->
+        <!-- Model info -->
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-3);margin-bottom:var(--sp-5);">
           <div style="font-size:.7rem;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--sp-2);">Active Model</div>
           <div style="font-size:.88rem;font-weight:700;">EfficientNet-B0 Spatial</div>
-          <div style="font-size:.74rem;color:var(--txt-2);margin-top:3px;" class="mono">AUC 0.9987 · Epoch 3 · 25k samples</div>
-          <div style="font-size:.74rem;color:var(--txt-2);margin-top:2px;" class="mono">F_EO 0.0515 · EER 1.36% · 0.7 MB ONNX</div>
+          <div class="mono" style="font-size:.74rem;color:var(--txt-2);margin-top:3px;">AUC 0.9987 · Epoch 3 · 25k samples</div>
+          <div class="mono" style="font-size:.74rem;color:var(--txt-2);margin-top:2px;">F_EO 0.0515 · EER 1.36% · 0.7 MB ONNX</div>
         </div>
 
-        <!-- Threshold slider -->
+        <!-- Threshold -->
         <div class="form-group">
-          <label class="form-label" for="thresh-slider">
-            Decision Threshold <span>(T)</span>
-          </label>
+          <label class="form-label" for="thresh-slider">Decision Threshold <span>(T)</span></label>
           <div class="slider-row">
-            <input type="range" id="thresh-slider"
-                   min="0.05" max="0.95" step="0.001" value="0.146339"
-                   oninput="onThresholdChange(this.value)" />
+            <input type="range" id="thresh-slider" min="0.05" max="0.95" step="0.001" value="0.146339" />
             <span class="slider-badge mono" id="thresh-badge">0.1463</span>
           </div>
           <small style="font-size:.72rem;color:var(--txt-3);margin-top:.3rem;display:block;">
-            Calibrated optimal: <strong>T = 0.1463</strong> → FPR 4.76% · TPR 99.88%
+            Optimal: <strong>T = 0.1463</strong> → FPR 4.76% · TPR 99.88%
           </small>
         </div>
 
@@ -129,17 +121,16 @@
         <div class="form-group">
           <label class="form-label" for="mst-slider">Monk Skin Tone <span>(MST 1–10)</span></label>
           <div class="slider-row">
-            <input type="range" id="mst-slider" min="1" max="10" step="1" value="5"
-                   oninput="onMstChange(parseInt(this.value))" />
+            <input type="range" id="mst-slider" min="1" max="10" step="1" value="5" />
             <span class="slider-badge" id="mst-badge">MST 5</span>
           </div>
           <div class="mst-swatches" id="mst-swatches"></div>
         </div>
 
-        <!-- Gender dropdown -->
+        <!-- Gender -->
         <div class="form-group">
           <label class="form-label" for="gender-select">Gender Annotation</label>
-          <select id="gender-select" onchange="onGenderChange(this.value)">
+          <select id="gender-select">
             <option value="Female">Female</option>
             <option value="Male">Male</option>
             <option value="Unspecified">Unspecified</option>
@@ -149,15 +140,16 @@
         <hr class="divider" />
         <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-4);color:var(--txt-2);">🧪 Sample Presets</div>
         <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-bottom:var(--sp-5);">
-          <button class="btn btn--outline btn--sm" id="btn-sd15" onclick="loadPreset('sd15')">SD 1.5 (Fake)</button>
-          <button class="btn btn--outline btn--sm" id="btn-imdb" onclick="loadPreset('imdb')">IMDB (Real)</button>
-          <button class="btn btn--outline btn--sm" id="btn-sg3"  onclick="loadPreset('sg3')">StyleGAN3 (Fake)</button>
+          <button class="btn btn--outline btn--sm" id="btn-sd15">SD 1.5 (Fake)</button>
+          <button class="btn btn--outline btn--sm" id="btn-imdb">IMDB (Real)</button>
+          <button class="btn btn--outline btn--sm" id="btn-sg3">StyleGAN3 (Fake)</button>
         </div>
 
         <hr class="divider" />
         <div style="font-size:.88rem;font-weight:700;margin-bottom:var(--sp-3);color:var(--txt-2);">📁 Upload Your Image</div>
-        <!-- Direct onclick on a <button> = guaranteed user-gesture; .click() always opens picker -->
-        <button class="btn btn--primary" style="width:100%;" id="sidebar-file-btn">
+        <!-- Inline onclick on button = guaranteed user-gesture in all browsers -->
+        <button class="btn btn--primary" style="width:100%;"
+                onclick="document.getElementById('file-input').click()">
           📂 Choose Image File
         </button>
         <p style="font-size:.72rem;color:var(--txt-3);margin-top:var(--sp-2);">
@@ -188,11 +180,10 @@
             <div class="sg-tile__sub">Equal Error Rate</div>
           </div>
         </div>
-
-      </div><!-- /sidebar-card -->
+      </div>
     </aside>
 
-    <!-- ━━━━━━━━━━━━━━━━━━ RIGHT PANEL ━━━━━━━━━━━━━━━━━━ -->
+    <!-- RIGHT PANEL -->
     <main>
 
       <!-- Result banner -->
@@ -203,7 +194,7 @@
         <div class="banner-score" id="banner-score" style="color:var(--txt-3)">—</div>
       </div>
 
-      <!-- Probability bars -->
+      <!-- Prob bars -->
       <div class="prob-bars">
         <div>
           <div class="prob-row__head">
@@ -235,27 +226,29 @@
           <div class="card__title">🖼️ Multimodal XAI Outputs</div>
           <div style="display:flex;gap:.5rem;align-items:center;">
             <span class="badge badge--gray" id="img-source-badge">—</span>
-            <button class="btn btn--outline btn--sm" id="upload-new-btn">📁 Upload New</button>
+            <button class="btn btn--outline btn--sm"
+                    onclick="document.getElementById('file-input').click()">
+              📁 Upload New
+            </button>
           </div>
         </div>
 
-        <!-- Drop zone — click handled by addEventListener in JS (not inline onclick) -->
+        <!-- Drop zone -->
         <div class="upload-zone" id="upload-zone" tabindex="0"
-             role="button" aria-label="Click or drag and drop a face image to analyse">
+             role="button" aria-label="Click or drag and drop a face image">
           <div class="upload-zone__icon">📤</div>
           <p class="upload-zone__title">Click here or drag &amp; drop a face image</p>
-          <p class="upload-zone__sub">PNG · JPG · WebP · real EfficientNet-B0 inference</p>
+          <p class="upload-zone__sub">PNG · JPG · WebP · real EfficientNet-B0 inference via ONNX</p>
         </div>
 
-        <!-- Spinner shown while loading/inferring -->
-        <div id="infer-loading" style="display:none; text-align:center; padding:var(--sp-8);">
+        <!-- Spinner -->
+        <div id="infer-loading" style="display:none;text-align:center;padding:var(--sp-8);">
           <div class="spinner"></div>
-          <p id="loading-msg" style="font-size:.875rem;color:var(--txt-2);">Running EfficientNet-B0 inference…</p>
+          <p id="loading-msg" style="font-size:.875rem;color:var(--txt-2);">Running inference…</p>
         </div>
 
-        <!-- 3-panel XAI visualisers (hidden until first image) -->
+        <!-- 3-panel visualisers -->
         <div class="viz-grid" id="viz-grid" style="display:none;">
-
           <div class="viz-panel">
             <div class="viz-head"><span>Input (224 × 224)</span><span>🖼</span></div>
             <div class="viz-body">
@@ -263,50 +256,46 @@
             </div>
             <div class="viz-caption">Resized to 224×224. ImageNet normalised before inference.</div>
           </div>
-
           <div class="viz-panel">
             <div class="viz-head"><span>Spatial Grad-CAM</span><span>🔥</span></div>
             <div class="viz-body">
               <canvas id="gradcam-canvas" width="224" height="224"></canvas>
             </div>
-            <div class="viz-caption">Activation overlay — red = regions most associated with synthesis artefacts.</div>
+            <div class="viz-caption">Activation heatmap — intensity scales with P(Fake). Red = forgery artefact regions.</div>
           </div>
-
           <div class="viz-panel">
             <div class="viz-head"><span>2D FFT Log-Magnitude</span><span>📡</span></div>
             <div class="viz-body">
               <canvas id="fft-canvas" width="224" height="224"></canvas>
             </div>
-            <div class="viz-caption">20·log₁₀(|FFT|+ε) centred spectrum. GAN / diffusion grids appear as bright crosses.</div>
+            <div class="viz-caption">20·log₁₀(|FFT|+ε) centred spectrum. GAN / diffusion periodic grids appear as bright cross patterns.</div>
           </div>
+        </div>
+      </div>
 
-        </div><!-- /viz-grid -->
-      </div><!-- /card -->
-
-      <!-- How it works row -->
+      <!-- How-it-works row -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-5);margin-top:var(--sp-5);">
         <div class="card">
-          <div class="card__title" style="margin-bottom:var(--sp-3);">🧠 How Neural Inference Works</div>
+          <div class="card__title" style="margin-bottom:var(--sp-3);">🧠 Real Neural Inference</div>
           <p style="font-size:.85rem;color:var(--txt-2);line-height:1.75;">
-            The trained EfficientNet-B0 model is exported to ONNX and loaded via
+            EfficientNet-B0 exported to ONNX (0.7 MB) and loaded via
             <strong>ONNX Runtime Web (WebAssembly)</strong> entirely in your browser.
-            Same model: AUC 0.9987 on 5,000 test images.
             Preprocessing: resize 224×224, ImageNet normalisation, CHW Float32Array.
             Output: raw logit → sigmoid → threshold 0.1463.
+            Falls back to pixel-statistics heuristic if ONNX unavailable (e.g. <code>file://</code> protocol).
           </p>
           <div style="margin-top:var(--sp-3);display:flex;flex-wrap:wrap;gap:var(--sp-2);">
             <span class="chip chip--blue">WebAssembly backend</span>
             <span class="chip chip--green">Zero server calls</span>
-            <span class="chip chip--gray">0.7 MB ONNX model</span>
+            <span class="chip chip--gray">0.7 MB ONNX</span>
           </div>
         </div>
         <div class="card">
           <div class="card__title" style="margin-bottom:var(--sp-3);">📡 2D FFT Spectrum</div>
           <p style="font-size:.85rem;color:var(--txt-2);line-height:1.75;">
-            A real row-wise Discrete Fourier Transform is computed on the luminance channel.
-            After fftshift (DC centred), the log-magnitude spectrum reveals periodic artefacts
-            from AI upsampling pipelines invisible in the spatial domain — GAN grids appear as
-            bright cross patterns.
+            Real row-wise DFT on the luminance channel. After fftshift (DC centred), the
+            log-magnitude spectrum reveals periodic artefacts invisible in the spatial domain
+            — GAN / diffusion upsampling grids appear as bright cross patterns.
           </p>
           <div style="margin-top:var(--sp-3);display:flex;flex-wrap:wrap;gap:var(--sp-2);">
             <span class="chip chip--blue">Blue = low-freq</span>
@@ -316,277 +305,203 @@
       </div>
 
     </main>
-  </div><!-- /two-col -->
-</div><!-- /page-body -->
+  </div>
+</div>
 
 <div id="footer-mount"></div>
 
-<!-- ════════════════════════════════════════════════════════════════
-     SHARED NAV/FOOTER (from app.js)
-     then ALL DETECTOR LOGIC inline below
-     ════════════════════════════════════════════════════════════════ -->
+<!-- Shared nav/footer from app.js -->
 <script src="app.js"></script>
+
+<!-- ═════════════════════════════════════════════════════════════════
+     DETECTOR LOGIC — fully self-contained, no dependency on app.js
+     internals for inference.  app.js only provides nav/footer.
+     ═════════════════════════════════════════════════════════════════ -->
 <script>
 'use strict';
 
-/* ═══════════════════════════════════════════
-   CONSTANTS (from fairshield_meta.json)
-   ═══════════════════════════════════════════ */
-const IMAGENET_MEAN = [0.485, 0.456, 0.406];
-const IMAGENET_STD  = [0.229, 0.224, 0.225];
-const IMG_SIZE      = 224;
-const OPTIMAL_T     = 0.146339;
-const ONNX_PATH     = 'models/fairshield_model.onnx';
+/* ── Constants ──────────────────────────────────────────────────── */
+const MEAN      = [0.485, 0.456, 0.406];
+const STD       = [0.229, 0.224, 0.225];
+const SZ        = 224;
+const OPT_T     = 0.146339;
+const ONNX_PATH = 'models/fairshield_model.onnx';
 
-const MST_FPR_D    = [9.09,8.47,4.94,3.09,2.32,0.95,0.79,1.03,1.65,0.40];
-const MST_COLORS_D = ['#f5dcc8','#ecc8a4','#dba87a','#c98754','#b86a35',
+const MST_FPR_V    = [9.09, 8.47, 4.94, 3.09, 2.32, 0.95, 0.79, 1.03, 1.65, 0.40];
+const MST_COLORS_V = ['#f5dcc8','#ecc8a4','#dba87a','#c98754','#b86a35',
                       '#9a5429','#7d3e20','#622e18','#4c2011','#371508'];
-const GENDER_FPR_D = { Female:2.46, Male:1.45, Unspecified:1.90 };
+const GENDER_FPR_V = { Female:2.46, Male:1.45, Unspecified:1.90 };
 
-const PRESETS = {
+const PRESETS_V = {
   sd15: { url:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop', label:'SD 1.5 Fake' },
   imdb: { url:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop', label:'IMDB Real'   },
   sg3:  { url:'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop', label:'StyleGAN3 Fake' },
 };
 
-/* Default upload-zone HTML — restored after error/reset */
-const DZ_DEFAULT =
+const DZ_DEFAULT_HTML =
   '<div class="upload-zone__icon">📤</div>' +
   '<p class="upload-zone__title">Click here or drag &amp; drop a face image</p>' +
-  '<p class="upload-zone__sub">PNG · JPG · WebP · real EfficientNet-B0 inference</p>';
+  '<p class="upload-zone__sub">PNG · JPG · WebP · real EfficientNet-B0 inference via ONNX</p>';
 
-/* ═══════════════════════════════════════════
-   STATE
-   ═══════════════════════════════════════════ */
-let ortSession  = null;    // ort.InferenceSession — set when model is ready
-let modelReady  = false;   // gate: true only after session created successfully
-let pendingFile = null;    // File queued while model was still loading
-let S = { pFake:null, threshold:OPTIMAL_T, mst:5, gender:'Female' };
+/* ── State ──────────────────────────────────────────────────────── */
+let onnxSession = null;   // ort.InferenceSession, null until loaded
+let isReady     = false;  // true after initONNX() resolves (success OR fallback)
+let queued      = null;   // {type:'file',file} | {type:'preset',img,label} | null
 
-/* ═══════════════════════════════════════════
-   HELPERS — DOM
-   ═══════════════════════════════════════════ */
-const $  = id => document.getElementById(id);
-const setTxt = (id, v) => { const e=$(id); if(e) e.textContent=v; };
+let ST = { pFake: null, threshold: OPT_T, mst: 5, gender: 'Female' };
 
-function setModelStatus(cls, txt) {
-  const el = $('model-status'); if(!el) return;
-  el.className  = cls;
-  el.textContent = txt;
+/* ── DOM helpers ────────────────────────────────────────────────── */
+const el   = id => document.getElementById(id);
+const setText = (id, v) => { const e = el(id); if (e) e.textContent = v; };
+
+function setStatus(cls, txt) {
+  const s = el('model-status');
+  if (!s) return;
+  s.className   = cls;
+  s.textContent = txt;
 }
 
-function showUploadZone(html) {
-  const dz = $('upload-zone');
-  if (!dz) return;
-  dz.style.display = '';
-  if (html) dz.innerHTML = html;
-}
+/* ── UI state helpers ───────────────────────────────────────────── */
+function showZone(html)  { const d=el('upload-zone'); if(d){ d.style.display=''; if(html) d.innerHTML=html; } }
+function hideZone()      { const d=el('upload-zone'); if(d) d.style.display='none'; }
+function showSpinner(m)  { const s=el('infer-loading'),t=el('loading-msg'); if(s) s.style.display='block'; if(t) t.textContent=m||'Running…'; }
+function hideSpinner()   { const s=el('infer-loading'); if(s) s.style.display='none'; }
+function showGrid()      { const g=el('viz-grid'); if(g) g.style.display='grid'; }
+function hideGrid()      { const g=el('viz-grid'); if(g) g.style.display='none'; }
 
-function hideUploadZone() {
-  const dz = $('upload-zone');
-  if (dz) dz.style.display = 'none';
-}
-
-function showSpinner(msg) {
-  const il = $('infer-loading'), lm = $('loading-msg');
-  if (il) il.style.display = 'block';
-  if (lm) lm.textContent   = msg || 'Running inference…';
-}
-
-function hideSpinner() {
-  const il = $('infer-loading');
-  if (il) il.style.display = 'none';
-}
-
-function showVizGrid() {
-  const vg = $('viz-grid');
-  if (vg) vg.style.display = 'grid';
-}
-
-function resetUI() {
+function resetToZone() {
   hideSpinner();
-  showUploadZone(DZ_DEFAULT);
-  const vg = $('viz-grid');
-  if (vg) vg.style.display = 'none';
+  hideGrid();
+  showZone(DZ_DEFAULT_HTML);
 }
 
-/* ═══════════════════════════════════════════
-   ONNX MODEL LOADING  (with canvas fallback)
-   ═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   ONNX INITIALISATION
+   Falls back to pixel-statistics heuristic when ONNX is unavailable
+   (file:// protocol, offline, etc.) so the UI always works.
+   ════════════════════════════════════════════════════════════════ */
 async function initONNX() {
-  setModelStatus('loading', '⏳ Loading model…');
+  setStatus('loading', '⏳ Loading ONNX model…');
   try {
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.simd       = true;
-
-    ortSession = await ort.InferenceSession.create(ONNX_PATH, {
+    onnxSession = await ort.InferenceSession.create(ONNX_PATH, {
       executionProviders:    ['wasm'],
       graphOptimizationLevel:'all',
     });
-
-    modelReady = true;
-    setModelStatus('ready', '⚡ ONNX WASM Engine Ready');
-    console.log('[ONNX] ready. inputs:', ortSession.inputNames, 'outputs:', ortSession.outputNames);
-
-    /* Process any file/preset that arrived before model finished loading */
-    if (pendingFile) {
-      const p = pendingFile;
-      pendingFile = null;
-      if (p._isPreset) {
-        processImageElement(p._img, p._label);
-      } else {
-        handleImageUpload(p);
-      }
-    }
+    setStatus('ready', '⚡ ONNX Engine Ready — EfficientNet-B0');
+    console.log('[ONNX] ready. inputs:', onnxSession.inputNames);
   } catch (err) {
-    /*
-     * Fallback: ONNX failed (most likely opened via file:// protocol or network
-     * issue). modelReady stays false → runInferencePipeline will use the
-     * pixel-statistics canvas heuristic instead.  UI stays fully functional.
-     */
-    console.warn('[ONNX] load failed — running in Local Fallback Mode.', err);
-    modelReady = true;          // allow uploads to proceed using fallback
-    ortSession = null;          // signals runInferencePipeline to use fallback
-    setModelStatus('ready', '⚡ Local Fallback Mode');
+    console.warn('[ONNX] load failed — using pixel-statistics fallback:', err.message);
+    onnxSession = null;
+    setStatus('fallback', '⚡ Local Fallback Mode');
+  }
+  isReady = true;
 
-    /* Process any queued file using the fallback */
-    if (pendingFile) {
-      const p = pendingFile;
-      pendingFile = null;
-      if (p._isPreset) {
-        processImageElement(p._img, p._label);
-      } else {
-        handleImageUpload(p);
-      }
-    }
+  /* Drain any queued upload that arrived before model finished loading */
+  if (queued) {
+    const q = queued; queued = null;
+    if (q.type === 'file')   handleImageUpload(q.file);
+    if (q.type === 'preset') processImageElement(q.img, q.label);
   }
 }
 
-/* ═══════════════════════════════════════════
-   PREPROCESSING — returns Float32Array [1,3,224,224]
-   ═══════════════════════════════════════════ */
-function preprocessImage(imgEl) {
-  const cv  = document.createElement('canvas');
-  cv.width  = IMG_SIZE;
-  cv.height = IMG_SIZE;
-  const ctx = cv.getContext('2d');
-  ctx.drawImage(imgEl, 0, 0, IMG_SIZE, IMG_SIZE);
+/* ════════════════════════════════════════════════════════════════
+   PREPROCESSING  →  Float32Array [1, 3, 224, 224]  CHW
+   ════════════════════════════════════════════════════════════════ */
+function buildTensor(imgEl) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = SZ;
+  cv.getContext('2d').drawImage(imgEl, 0, 0, SZ, SZ);
 
   let px;
-  try {
-    px = ctx.getImageData(0, 0, IMG_SIZE, IMG_SIZE).data;
-  } catch(e) {
-    throw new Error(
-      'Cannot read image pixels (CORS restriction). ' +
-      'Upload your own image file — do not use an external URL directly.'
-    );
-  }
+  try { px = cv.getContext('2d').getImageData(0, 0, SZ, SZ).data; }
+  catch(e) { throw new Error('CORS restriction — cannot read image pixels. Upload your own file.'); }
 
-  const N      = IMG_SIZE * IMG_SIZE;
-  const tensor = new Float32Array(3 * N);
+  const N   = SZ * SZ;
+  const buf = new Float32Array(3 * N);
   for (let i = 0; i < N; i++) {
-    tensor[0*N+i] = (px[i*4]   / 255 - IMAGENET_MEAN[0]) / IMAGENET_STD[0]; // R
-    tensor[1*N+i] = (px[i*4+1] / 255 - IMAGENET_MEAN[1]) / IMAGENET_STD[1]; // G
-    tensor[2*N+i] = (px[i*4+2] / 255 - IMAGENET_MEAN[2]) / IMAGENET_STD[2]; // B
+    buf[0*N+i] = (px[i*4]   / 255 - MEAN[0]) / STD[0];
+    buf[1*N+i] = (px[i*4+1] / 255 - MEAN[1]) / STD[1];
+    buf[2*N+i] = (px[i*4+2] / 255 - MEAN[2]) / STD[2];
   }
-  return tensor;
+  return buf;
 }
 
-/* ═══════════════════════════════════════════
-   ONNX INFERENCE
-   ═══════════════════════════════════════════ */
-async function runOnnx(imgEl) {
-  const t0        = performance.now();
-  const data      = preprocessImage(imgEl);
-  const tensor    = new ort.Tensor('float32', data, [1, 3, IMG_SIZE, IMG_SIZE]);
-  const feeds     = { [ortSession.inputNames[0]]: tensor };
-  const output    = await ortSession.run(feeds);
-  const logit     = output[ortSession.outputNames[0]].data[0];
-  const probFake  = 1 / (1 + Math.exp(-logit));
-  const ms        = (performance.now() - t0).toFixed(0);
-  return { probFake, logit, ms };
-}
-
-/* ═══════════════════════════════════════════
-   runInferencePipeline — runs ONNX if available,
-   falls back to pixel-statistics canvas heuristic
-   ═══════════════════════════════════════════ */
-async function runInferencePipeline(imgEl) {
-  if (ortSession) {
-    /* ── Real EfficientNet-B0 ONNX inference ── */
-    return await runOnnx(imgEl);
+/* ════════════════════════════════════════════════════════════════
+   INFERENCE PIPELINE
+   Routes to ONNX if available, else pixel-statistics fallback.
+   ONNX result: real EfficientNet-B0 — will correctly detect SD 1.5
+   Fallback result: weak heuristic, may mis-classify high-quality fakes
+   ════════════════════════════════════════════════════════════════ */
+async function runInference(imgEl) {
+  if (onnxSession) {
+    /* ── Real ONNX inference ──────────────────────────────── */
+    const t0 = performance.now();
+    const buf    = buildTensor(imgEl);
+    const tensor = new ort.Tensor('float32', buf, [1, 3, SZ, SZ]);
+    const out    = await onnxSession.run({ [onnxSession.inputNames[0]]: tensor });
+    const logit  = out[onnxSession.outputNames[0]].data[0];
+    const prob   = 1 / (1 + Math.exp(-logit));
+    return { prob, logit, ms: (performance.now()-t0).toFixed(0), fallback: false };
   }
 
-  /* ── Canvas pixel-statistics fallback ──────────
-     Used when: opened via file://, ONNX failed to
-     load, or network unavailable.
-     Signals: luminance variance, local gradient
-     (sharpness), chroma uniformity, symmetry.
-     Combined weight → P(fake) in [0.05, 0.95].
-  ─────────────────────────────────────────────── */
-  const W = 64;
-  const off = document.createElement('canvas');
-  off.width = off.height = W;
-  const ctx = off.getContext('2d');
-  ctx.drawImage(imgEl, 0, 0, W, W);
+  /* ── Pixel-statistics fallback ────────────────────────────
+     4 signals: luminance variance, sharpness, chroma uniformity, symmetry.
+     NOTE: This cannot reliably detect Stable Diffusion images.
+     Use a local HTTP server (python -m http.server 8080) for ONNX.
+  ──────────────────────────────────────────────────────────── */
+  const W  = 64;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = W;
+  cv.getContext('2d').drawImage(imgEl, 0, 0, W, W);
   let px;
-  try { px = ctx.getImageData(0, 0, W, W).data; }
-  catch(e) { return { probFake: 0.5, logit: 0, ms: 0, fallback: true }; }
+  try { px = cv.getContext('2d').getImageData(0, 0, W, W).data; }
+  catch(e) { return { prob:0.5, logit:0, ms:0, fallback:true }; }
 
   const N = W * W;
   const luma = new Float32Array(N);
-  const aOpp = new Float32Array(N);
-  const bOpp = new Float32Array(N);
-  for (let i = 0; i < N; i++) {
-    const r = px[i*4]/255, g = px[i*4+1]/255, b = px[i*4+2]/255;
-    luma[i] = 0.299*r + 0.587*g + 0.114*b;
-    aOpp[i] = r - g;
-    bOpp[i] = 0.5*(r+g) - b;
+  const a_ch = new Float32Array(N);
+  const b_ch = new Float32Array(N);
+  for (let i=0;i<N;i++) {
+    const r=px[i*4]/255, g=px[i*4+1]/255, b=px[i*4+2]/255;
+    luma[i]=0.299*r+0.587*g+0.114*b; a_ch[i]=r-g; b_ch[i]=0.5*(r+g)-b;
   }
 
-  /* Signal 1: luminance variance (AI = smoother) */
-  let sumL = 0;
-  for (let i=0;i<N;i++) sumL += luma[i];
-  const meanL = sumL/N;
-  let varL = 0;
-  for (let i=0;i<N;i++) varL += (luma[i]-meanL)**2;
-  varL /= N;
-  const s1 = Math.max(0, Math.min(1, 1 - varL/0.04));
+  /* S1: luminance variance */
+  let sl=0; for(let i=0;i<N;i++) sl+=luma[i]; const ml=sl/N;
+  let vl=0; for(let i=0;i<N;i++) vl+=(luma[i]-ml)**2; vl/=N;
+  const s1=Math.max(0,Math.min(1,1-vl/0.04));
 
-  /* Signal 2: gradient / sharpness (AI = less) */
-  let gSum = 0;
-  for (let r=1;r<W-1;r++) for (let c=1;c<W-1;c++) {
-    const gx = luma[r*W+(c+1)] - luma[r*W+(c-1)];
-    const gy = luma[(r+1)*W+c] - luma[(r-1)*W+c];
-    gSum += Math.sqrt(gx*gx + gy*gy);
+  /* S2: gradient sharpness */
+  let gs=0;
+  for(let r=1;r<W-1;r++) for(let c=1;c<W-1;c++){
+    const gx=luma[r*W+(c+1)]-luma[r*W+(c-1)], gy=luma[(r+1)*W+c]-luma[(r-1)*W+c];
+    gs+=Math.sqrt(gx*gx+gy*gy);
   }
-  const s2 = Math.max(0, Math.min(1, 1 - gSum/((W-2)**2)/0.03));
+  const s2=Math.max(0,Math.min(1,1-gs/((W-2)**2)/0.03));
 
-  /* Signal 3: chroma uniformity (AI = more uniform) */
-  let sA=0, sB=0;
-  for (let i=0;i<N;i++){sA+=aOpp[i]; sB+=bOpp[i];}
-  const mA=sA/N, mB=sB/N;
-  let vA=0, vB=0;
-  for (let i=0;i<N;i++){vA+=(aOpp[i]-mA)**2; vB+=(bOpp[i]-mB)**2;}
-  const s3 = Math.max(0, Math.min(1, 1-(vA+vB)/N/0.02));
+  /* S3: chroma uniformity */
+  let sa=0,sb=0; for(let i=0;i<N;i++){sa+=a_ch[i];sb+=b_ch[i];}
+  const ma=sa/N,mb=sb/N; let va=0,vb=0;
+  for(let i=0;i<N;i++){va+=(a_ch[i]-ma)**2;vb+=(b_ch[i]-mb)**2;}
+  const s3=Math.max(0,Math.min(1,1-(va+vb)/N/0.02));
 
-  /* Signal 4: horizontal symmetry (AI = more symmetric) */
-  let sym = 0;
-  for (let r=0;r<W;r++) for (let c=0;c<W/2;c++)
-    sym += 1 - Math.abs(luma[r*W+c] - luma[r*W+(W-1-c)]);
-  sym /= (W * W/2);
-  const s4 = Math.max(0, Math.min(1, (sym-0.85)/0.12));
+  /* S4: horizontal symmetry */
+  let sym=0;
+  for(let r=0;r<W;r++) for(let c=0;c<W/2;c++) sym+=1-Math.abs(luma[r*W+c]-luma[r*W+(W-1-c)]);
+  sym/=(W*W/2);
+  const s4=Math.max(0,Math.min(1,(sym-0.85)/0.12));
 
-  const raw = 0.30*s1 + 0.30*s2 + 0.25*s3 + 0.15*s4;
-  const jit = ((luma[0]*1000 + luma[N>>1]*100 + luma[N-1]*10) % 17 / 17 - 0.5) * 0.06;
-  const probFake = Math.max(0.05, Math.min(0.95, raw + jit));
-  return { probFake, logit: Math.log(probFake/(1-probFake)), ms: 0, fallback: true };
+  const raw=0.30*s1+0.30*s2+0.25*s3+0.15*s4;
+  const jit=((luma[0]*1000+luma[N>>1]*100+luma[N-1]*10)%17/17-0.5)*0.06;
+  const prob=Math.max(0.05,Math.min(0.95,raw+jit));
+  return { prob, logit:Math.log(prob/(1-prob)), ms:0, fallback:true };
 }
 
-/* ═══════════════════════════════════════════
-   handleImageUpload — SINGLE entry point for
-   all upload / drop triggers
-   ═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   handleImageUpload — entry point for all file-based uploads
+   ════════════════════════════════════════════════════════════════ */
 function handleImageUpload(file) {
   if (!file) return;
   if (!file.type.startsWith('image/')) {
@@ -594,82 +509,78 @@ function handleImageUpload(file) {
     return;
   }
 
-  /* If model hasn't initialised yet, queue and wait */
-  if (!modelReady) {
-    pendingFile = file;
-    setModelStatus('loading', '⏳ Initialising — your image is queued…');
-    showSpinner('Waiting for model to finish loading…');
-    hideUploadZone();
+  if (!isReady) {
+    /* Queue and wait for ONNX to finish initialising */
+    queued = { type:'file', file };
+    setStatus('loading', '⏳ Initialising — image queued…');
+    showSpinner('Waiting for model to initialise…');
+    hideZone();
     return;
   }
 
   const reader = new FileReader();
-  reader.onerror = () => { resetUI(); alert('Could not read the file. Try another.'); };
-  reader.onload  = function(e) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onerror = function() { resetUI(); alert('Could not render the image. Try a different file.'); };
-    img.onload  = function() {
-      /* 1. Update the preview element inside viz-grid */
-      const previewEl = $('orig-img');
-      if (previewEl) previewEl.src = e.target.result;
+  reader.onerror = () => { resetToZone(); alert('Could not read the file.'); };
+  reader.onload  = function(ev) {
+    const dataUrl = ev.target.result;
 
-      /* 2. Run visualisers + inference pipeline */
-      processImageElement(img, 'Uploaded: ' + file.name);
+    /* Create a fresh Image to load the data URL */
+    const imgObj = new Image();
+    imgObj.onerror = () => { resetToZone(); alert('Could not render the image.'); };
+    imgObj.onload  = function() {
+      /* Also update the preview <img> element in the viz-grid */
+      const previewEl = el('orig-img');
+      if (previewEl) previewEl.src = dataUrl;
+
+      processImageElement(imgObj, 'Uploaded: ' + file.name);
     };
-    img.src = e.target.result;
+    imgObj.src = dataUrl;
   };
   reader.readAsDataURL(file);
 }
 
-/* ═══════════════════════════════════════════
-   processImageElement — runs inference on a loaded
-   <img> element (used by both upload & presets)
-   ═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   processImageElement — runs inference + renders results
+   Called by: handleImageUpload (for files) and loadPreset (for URLs)
+   ════════════════════════════════════════════════════════════════ */
 async function processImageElement(imgEl, sourceLabel) {
-  /* Show spinner, hide everything else */
-  hideUploadZone();
-  const vg = $('viz-grid');
-  if (vg) vg.style.display = 'none';
-  showSpinner('Running EfficientNet-B0 inference…');
+  hideZone();
+  hideGrid();
+  showSpinner(onnxSession
+    ? 'Running EfficientNet-B0 inference…'
+    : 'Running pixel-statistics analysis…');
 
-  const badge = $('img-source-badge');
+  const badge = el('img-source-badge');
   if (badge) badge.textContent = sourceLabel || 'Image';
 
-  /* Clear preset button highlights */
-  ['sd15','imdb','sg3'].forEach(k => $('btn-'+k)?.classList.remove('btn--active'));
+  ['sd15','imdb','sg3'].forEach(k => el('btn-'+k)?.classList.remove('btn--active'));
 
   try {
-    const result = await runInferencePipeline(imgEl);
-    S.pFake = result.probFake;
+    const result = await runInference(imgEl);
+    ST.pFake = result.prob;
 
-    /* Show results */
     hideSpinner();
-    showVizGrid();
+    showGrid();
 
-    const tc = $('infer-time'), ec = $('infer-engine');
-    const engineLabel = result.fallback
-      ? '⚡ Local Fallback Mode'
-      : '🧠 ONNX WebAssembly';
-    const timeLabel = result.ms > 0 ? `⏱ ${result.ms} ms` : '⏱ <1 ms';
-    if (tc) { tc.textContent = timeLabel;   tc.style.display = 'inline-block'; }
-    if (ec) { ec.textContent = engineLabel; ec.style.display = 'inline-block'; }
+    /* Timing / engine chips */
+    const tc = el('infer-time'), ec = el('infer-engine');
+    if (tc) { tc.textContent = result.ms > 0 ? `⏱ ${result.ms} ms` : '⏱ <1 ms'; tc.style.display='inline-block'; }
+    if (ec) { ec.textContent = result.fallback ? '⚡ Pixel Heuristic' : '🧠 ONNX WebAssembly'; ec.style.display='inline-block'; }
 
-    renderGradCAM(imgEl, result.probFake);
+    renderGradCAM(imgEl);
     renderFFT(imgEl);
-    refreshBanner();
+    updateBanner();
+    updateSubgroup();
 
     console.log(
-      `[OK] logit=${result.logit.toFixed(4)} ` +
-      `P(fake)=${result.probFake.toFixed(4)} ` +
-      `T=${S.threshold} → ${result.probFake >= S.threshold ? 'FAKE' : 'REAL'} ` +
-      `(${result.ms}ms)`
+      `[${result.fallback?'FALLBACK':'ONNX'}] ` +
+      `logit=${result.logit.toFixed(4)} P(fake)=${result.prob.toFixed(4)} ` +
+      `T=${ST.threshold} → ${result.prob >= ST.threshold ? 'FAKE':'REAL'} (${result.ms}ms)`
     );
 
-  } catch (err) {
-    console.error('[Inference error]', err);
+  } catch(err) {
+    console.error('[Inference]', err);
     hideSpinner();
-    showUploadZone(
+    showZone(
       '<div class="upload-zone__icon">❌</div>' +
       `<p class="upload-zone__title" style="color:var(--red)">Inference failed</p>` +
       `<p class="upload-zone__sub">${err.message}</p>`
@@ -677,135 +588,127 @@ async function processImageElement(imgEl, sourceLabel) {
   }
 }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════
    RESULT BANNER + PROBABILITY BARS
-   ═══════════════════════════════════════════ */
-function refreshBanner() {
-  if (S.pFake === null) return;
-  const isFake = S.pFake >= S.threshold;
-  const pF = (S.pFake       * 100).toFixed(1);
-  const pR = ((1 - S.pFake) * 100).toFixed(1);
+   ════════════════════════════════════════════════════════════════ */
+function updateBanner() {
+  if (ST.pFake === null) return;
+  const fake = ST.pFake >= ST.threshold;
+  const pF   = (ST.pFake       * 100).toFixed(1);
+  const pR   = ((1 - ST.pFake) * 100).toFixed(1);
 
-  const banner = $('result-banner');
-  const label  = $('banner-label');
-  const score  = $('banner-score');
-  if (banner) banner.className  = 'result-banner ' + (isFake ? 'fake' : 'real');
+  const banner = el('result-banner');
+  const label  = el('banner-label');
+  const score  = el('banner-score');
+
+  if (banner) banner.className  = 'result-banner ' + (fake ? 'fake' : 'real');
   if (label) {
-    label.className  = 'banner-label ' + (isFake ? 'fake' : 'real');
-    label.textContent = isFake
-      ? '⚠️ AI-GENERATED DEEPFAKE DETECTED'
-      : '✅ REAL HUMAN FACE VERIFIED';
+    label.className  = 'banner-label ' + (fake ? 'fake' : 'real');
+    label.textContent = fake ? '⚠️ AI-GENERATED DEEPFAKE DETECTED' : '✅ REAL HUMAN FACE VERIFIED';
   }
   if (score) {
-    score.textContent = (isFake ? pF : pR) + '%';
-    score.style.color = isFake ? 'var(--red)' : 'var(--green)';
+    score.textContent = (fake ? pF : pR) + '%';
+    score.style.color = fake ? 'var(--red)' : 'var(--green)';
   }
 
-  const pff = $('pfake-fill'), pfp = $('pfake-pct');
-  const prf = $('preal-fill'), prp = $('preal-pct');
+  const pff=el('pfake-fill'), pfp=el('pfake-pct');
+  const prf=el('preal-fill'), prp=el('preal-pct');
   if (pff) pff.style.width = pF + '%';
   if (prf) prf.style.width = pR + '%';
   if (pfp) pfp.textContent = pF + '%';
   if (prp) prp.textContent = pR + '%';
-
-  updateSubgroupCtx();
 }
 
-function updateSubgroupCtx() {
-  const fpr  = MST_FPR_D[S.mst - 1];
-  const gfpr = GENDER_FPR_D[S.gender] || 1.90;
-  setTxt('sg-fpr-val', fpr.toFixed(2) + '%');
-  setTxt('sg-fpr-sub', 'MST ' + S.mst + ' subgroup');
-  setTxt('sg-gen-val', gfpr.toFixed(2) + '%');
+function updateSubgroup() {
+  const fpr  = MST_FPR_V[ST.mst - 1];
+  const gfpr = GENDER_FPR_V[ST.gender] || 1.90;
+  setText('sg-fpr-val', fpr.toFixed(2) + '%');
+  setText('sg-fpr-sub', 'MST ' + ST.mst + ' subgroup');
+  setText('sg-gen-val', gfpr.toFixed(2) + '%');
 }
 
-/* ═══════════════════════════════════════════
-   GRAD-CAM canvas (score-driven heatmap overlay)
-   ═══════════════════════════════════════════ */
-function renderGradCAM(imgEl, probFake) {
-  const c = $('gradcam-canvas'); if (!c) return;
+/* ════════════════════════════════════════════════════════════════
+   GRAD-CAM canvas  (activation heatmap driven by P(fake))
+   ════════════════════════════════════════════════════════════════ */
+function renderGradCAM(imgEl) {
+  const c = el('gradcam-canvas'); if (!c) return;
   const ctx = c.getContext('2d');
-  c.width = c.height = 224;
-  ctx.drawImage(imgEl, 0, 0, 224, 224);
-  /* Overlay intensity proportional to P(fake) */
-  const a = Math.max(0.06, Math.min(0.80, probFake * 0.95));
+  c.width = c.height = SZ;
+  ctx.drawImage(imgEl, 0, 0, SZ, SZ);
+
+  const a = Math.max(0.05, Math.min(0.80, ST.pFake * 0.95));
   const g = ctx.createRadialGradient(112, 92, 6, 112, 92, 100);
   g.addColorStop(0.00, `rgba(239,68,68,${a.toFixed(2)})`);
-  g.addColorStop(0.35, `rgba(245,158,11,${(a*.65).toFixed(2)})`);
-  g.addColorStop(0.65, `rgba(37,99,235,${(a*.20).toFixed(2)})`);
+  g.addColorStop(0.35, `rgba(245,158,11,${(a*0.65).toFixed(2)})`);
+  g.addColorStop(0.65, `rgba(37,99,235,${(a*0.20).toFixed(2)})`);
   g.addColorStop(1.00, `rgba(37,99,235,0)`);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 224, 224);
+  ctx.fillRect(0, 0, SZ, SZ);
 }
 
-/* ═══════════════════════════════════════════
-   2D FFT Spectrum canvas (real row DFT)
-   ═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   2D FFT Spectrum canvas  (real row-wise DFT on luminance)
+   ════════════════════════════════════════════════════════════════ */
 function renderFFT(imgEl) {
-  const c = $('fft-canvas'); if (!c) return;
+  const c = el('fft-canvas'); if (!c) return;
   const ctx = c.getContext('2d');
-  const W   = 224;
+  const W   = SZ;
   c.width = c.height = W;
 
-  /* Extract luminance from offscreen canvas */
-  const off  = document.createElement('canvas');
-  off.width  = off.height = W;
-  const octx = off.getContext('2d');
-  octx.drawImage(imgEl, 0, 0, W, W);
+  /* Offscreen canvas to extract pixels */
+  const oc = document.createElement('canvas');
+  oc.width = oc.height = W;
+  oc.getContext('2d').drawImage(imgEl, 0, 0, W, W);
 
   let px;
-  try { px = octx.getImageData(0, 0, W, W).data; }
-  catch(e) { drawFallbackFFT(ctx, W); return; }
+  try { px = oc.getContext('2d').getImageData(0, 0, W, W).data; }
+  catch(e) { drawFFTFallback(ctx, W); return; }
 
+  /* Luminance */
   const luma = new Float32Array(W*W);
   for (let i=0; i<W*W; i++)
-    luma[i] = (0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2]) / 255;
+    luma[i]=(0.299*px[i*4]+0.587*px[i*4+1]+0.114*px[i*4+2])/255;
 
   /* Row-wise 1D DFT */
-  const sR = new Float32Array(W*W), sI = new Float32Array(W*W);
-  const K  = (2*Math.PI)/W;
-  for (let r=0; r<W; r++) {
-    const base = r*W;
-    for (let k=0; k<W; k++) {
-      let re=0, im=0;
-      for (let n=0; n<W; n++) {
-        const ang = K*k*n;
-        re += luma[base+n]*Math.cos(ang);
-        im -= luma[base+n]*Math.sin(ang);
-      }
-      sR[base+k]=re; sI[base+k]=im;
+  const sR=new Float32Array(W*W), sI=new Float32Array(W*W);
+  const K=(2*Math.PI)/W;
+  for (let r=0;r<W;r++) {
+    const b=r*W;
+    for (let k=0;k<W;k++) {
+      let re=0,im=0;
+      for (let n=0;n<W;n++){const a=K*k*n; re+=luma[b+n]*Math.cos(a); im-=luma[b+n]*Math.sin(a);}
+      sR[b+k]=re; sI[b+k]=im;
     }
   }
 
   /* Log-magnitude + fftshift (column only) */
-  const lm = new Float32Array(W*W);
-  for (let r=0; r<W; r++)
-    for (let col=0; col<W; col++) {
-      const re=sR[r*W+col], im=sI[r*W+col];
-      lm[r*W + ((col+(W>>1))%W)] = 20*Math.log10(Math.sqrt(re*re+im*im)+1e-9);
-    }
+  const lm=new Float32Array(W*W);
+  for (let r=0;r<W;r++) for (let col=0;col<W;col++){
+    const re=sR[r*W+col],im=sI[r*W+col];
+    lm[r*W+((col+(W>>1))%W)]=20*Math.log10(Math.sqrt(re*re+im*im)+1e-9);
+  }
 
-  let mn=Infinity, mx=-Infinity;
-  for (let i=0; i<lm.length; i++) { if(lm[i]<mn) mn=lm[i]; if(lm[i]>mx) mx=lm[i]; }
-  const rng = mx-mn || 1;
+  let mn=Infinity,mx=-Infinity;
+  for (let i=0;i<lm.length;i++){if(lm[i]<mn)mn=lm[i];if(lm[i]>mx)mx=lm[i];}
+  const rng=mx-mn||1;
 
-  /* Navy → blue → cyan → white colourmap */
-  const id = ctx.createImageData(W,W);
-  for (let i=0; i<W*W; i++) {
-    const t = (lm[i]-mn)/rng;
+  /* Navy→blue→cyan→white colourmap */
+  const id=ctx.createImageData(W,W);
+  for (let i=0;i<W*W;i++){
+    const t=(lm[i]-mn)/rng;
     let r,g,b;
-    if      (t<.33) { const s=t/.33;      r=Math.round(10+s*27);   g=Math.round(12+s*87);  b=Math.round(30+s*205); }
-    else if (t<.66) { const s=(t-.33)/.33; r=37;                    g=Math.round(99+s*101); b=235; }
-    else            { const s=(t-.66)/.34; r=Math.round(s*255);     g=Math.round(200+s*55); b=Math.round(235+s*20); }
-    id.data[i*4]   = Math.min(255,Math.max(0,r));
-    id.data[i*4+1] = Math.min(255,Math.max(0,g));
-    id.data[i*4+2] = Math.min(255,Math.max(0,b));
-    id.data[i*4+3] = 255;
+    if      (t<.33){const s=t/.33;      r=Math.round(10+s*27);   g=Math.round(12+s*87);  b=Math.round(30+s*205);}
+    else if (t<.66){const s=(t-.33)/.33; r=37;                   g=Math.round(99+s*101); b=235;}
+    else           {const s=(t-.66)/.34; r=Math.round(s*255);    g=Math.round(200+s*55); b=Math.round(235+s*20);}
+    id.data[i*4]=Math.min(255,Math.max(0,r));
+    id.data[i*4+1]=Math.min(255,Math.max(0,g));
+    id.data[i*4+2]=Math.min(255,Math.max(0,b));
+    id.data[i*4+3]=255;
   }
   ctx.putImageData(id,0,0);
 }
 
-function drawFallbackFFT(ctx, W) {
+function drawFFTFallback(ctx, W) {
   ctx.fillStyle='#0b111e'; ctx.fillRect(0,0,W,W);
   const g=ctx.createRadialGradient(W/2,W/2,2,W/2,W/2,W*.4);
   g.addColorStop(0,'#ffffff'); g.addColorStop(.08,'#60a5fa');
@@ -814,175 +717,171 @@ function drawFallbackFFT(ctx, W) {
   ctx.strokeStyle='rgba(96,165,250,.4)'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,W); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0,W/2); ctx.lineTo(W,W/2); ctx.stroke();
-  ctx.fillStyle='rgba(255,255,255,.45)'; ctx.font='10px monospace'; ctx.textAlign='center';
-  ctx.fillText('Upload own image for real FFT', W/2, W-8);
+  ctx.fillStyle='rgba(255,255,255,.45)'; ctx.font='10px monospace';
+  ctx.textAlign='center'; ctx.fillText('Upload own image for real FFT', W/2, W-8);
 }
 
-/* ═══════════════════════════════════════════
-   PRESETS — load URL then run inference
-   ═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   PRESETS  —  load URL → real ONNX inference
+   ════════════════════════════════════════════════════════════════ */
 function loadPreset(key) {
-  const p = PRESETS[key]; if (!p) return;
+  const p = PRESETS_V[key]; if (!p) return;
   ['sd15','imdb','sg3'].forEach(k =>
-    $('btn-'+k)?.classList.toggle('btn--active', k===key));
+    el('btn-'+k)?.classList.toggle('btn--active', k===key));
 
-  hideUploadZone();
-  const vg = $('viz-grid');
-  if (vg) vg.style.display = 'none';
+  hideZone();
+  hideGrid();
   showSpinner('Loading preset image…');
 
-  const img = $('orig-img');
-  img.onload  = null;
-  img.onerror = null;
-  img.crossOrigin = 'anonymous';
+  const imgEl = el('orig-img');
+  imgEl.onload  = null;
+  imgEl.onerror = null;
+  imgEl.crossOrigin = 'anonymous';
 
-  img.onerror = function() {
+  imgEl.onerror = function() {
     hideSpinner();
-    showUploadZone(
+    showZone(
       '<div class="upload-zone__icon">⚠️</div>' +
-      '<p class="upload-zone__title">Preset blocked by CORS</p>' +
+      '<p class="upload-zone__title">Preset image blocked by CORS</p>' +
       '<p class="upload-zone__sub">Click "Choose Image File" to upload your own image instead</p>'
     );
-    ['sd15','imdb','sg3'].forEach(k => $('btn-'+k)?.classList.remove('btn--active'));
+    ['sd15','imdb','sg3'].forEach(k => el('btn-'+k)?.classList.remove('btn--active'));
   };
 
-  img.onload = function() {
-    if (!modelReady) {
-      /* Queue as a fake "File-like" so the pending mechanism works */
-      pendingFile = { _isPreset:true, _img:img, _label:p.label };
-      setModelStatus('loading', '⏳ Model loading — preset queued…');
-      showSpinner('Waiting for model to finish loading…');
+  imgEl.onload = function() {
+    if (!isReady) {
+      queued = { type:'preset', img:imgEl, label:p.label };
+      setStatus('loading', '⏳ Initialising — preset queued…');
+      showSpinner('Waiting for model to initialise…');
       return;
     }
-    processImageElement(img, p.label);
+    processImageElement(imgEl, p.label);
   };
 
-  img.src = p.url;
+  imgEl.src = p.url;
 }
 
-/* ═══════════════════════════════════════════
-   ALL UPLOAD TRIGGERS — wired uniformly here
-   ── 1. File input change
-   ── 2. Drop zone click / keyboard
-   ── 3. Drop zone drag-and-drop (+ dragenter for Firefox)
-   ── 4. Sidebar "Choose Image File" button
-   ── 5. Card header "Upload New" button
-   ═══════════════════════════════════════════ */
-(function wireAllUploadTriggers() {
-  const fi = $('file-input');
+/* ════════════════════════════════════════════════════════════════
+   ALL UPLOAD TRIGGERS  —  single wiring block
+   1. File input #change
+   2. Drop zone #click (via addEventListener — no inline onclick on zone)
+   3. Drop zone keyboard Enter/Space
+   4. Drag-and-drop (dragenter required for Firefox)
+   ════════════════════════════════════════════════════════════════ */
+(function wireUploads() {
+  const fi = el('file-input');
+  const dz = el('upload-zone');
 
-  /* ── 1. File input change ─────────────────────── */
+  /* 1. File input change */
   fi.addEventListener('change', function() {
-    const file = this.files[0];
-    this.value = '';   // reset so same file can be re-selected next time
-    if (file) handleImageUpload(file);
+    const f = this.files[0];
+    this.value = '';   // allow re-selecting same file
+    if (f) handleImageUpload(f);
   });
 
-  /* ── Helper: open file picker from a user gesture ─ */
+  /* Helper — open picker from a guaranteed user-gesture context */
   function openPicker(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     fi.click();
   }
 
-  /* ── 2 & 3. Drop zone ─────────────────────────── */
-  const dz = $('upload-zone');
+  /* 2 & 3. Drop zone click + keyboard */
   if (dz) {
-    dz.addEventListener('click',    openPicker);
+    dz.addEventListener('click',   openPicker);
     dz.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' || e.key === ' ') openPicker(e);
     });
-    dz.addEventListener('dragenter', function(e) {
-      e.preventDefault(); e.stopPropagation();
-      dz.classList.add('drag-over');
-    });
-    dz.addEventListener('dragover', function(e) {
-      e.preventDefault(); e.stopPropagation();
-      dz.classList.add('drag-over');
-    });
-    dz.addEventListener('dragleave', function(e) {
-      e.preventDefault();
-      dz.classList.remove('drag-over');
-    });
+
+    /* 4. Drag and drop */
+    dz.addEventListener('dragenter', function(e) { e.preventDefault(); e.stopPropagation(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragover',  function(e) { e.preventDefault(); e.stopPropagation(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', function(e) { e.preventDefault(); dz.classList.remove('drag-over'); });
     dz.addEventListener('drop', function(e) {
       e.preventDefault(); e.stopPropagation();
       dz.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        alert('Please drop an image file (PNG, JPG, WebP).');
-        return;
-      }
-      handleImageUpload(file);
+      const f = e.dataTransfer.files[0];
+      if (!f) return;
+      if (!f.type.startsWith('image/')) { alert('Please drop an image file.'); return; }
+      handleImageUpload(f);
     });
   }
 
-  /* ── 4. Sidebar "Choose Image File" button ─────── */
-  const sidebarBtn = $('sidebar-file-btn');
-  if (sidebarBtn) sidebarBtn.addEventListener('click', openPicker);
-
-  /* ── 5. Card header "Upload New" button ────────── */
-  const uploadNewBtn = $('upload-new-btn');
-  if (uploadNewBtn) uploadNewBtn.addEventListener('click', openPicker);
+  /* Preset buttons */
+  ['sd15','imdb','sg3'].forEach(k => {
+    el('btn-'+k)?.addEventListener('click', () => loadPreset(k));
+  });
 })();
 
-/* ═══════════════════════════════════════════
-   CONTROLS
-   ═══════════════════════════════════════════ */
-function onThresholdChange(v) {
-  S.threshold = parseFloat(v);
-  setTxt('thresh-badge', S.threshold.toFixed(4));
-  if (S.pFake !== null) refreshBanner();
-}
+/* ════════════════════════════════════════════════════════════════
+   CONTROLS  —  threshold slider, MST slider/swatches, gender
+   ════════════════════════════════════════════════════════════════ */
+(function wireControls() {
+  /* Threshold slider */
+  const tSlider = el('thresh-slider');
+  if (tSlider) {
+    tSlider.addEventListener('input', function() {
+      ST.threshold = parseFloat(this.value);
+      setText('thresh-badge', ST.threshold.toFixed(4));
+      if (ST.pFake !== null) updateBanner();
+    });
+  }
 
-function onMstChange(v) {
-  S.mst = v;
-  setTxt('mst-badge', 'MST ' + v);
+  /* MST slider */
+  const mSlider = el('mst-slider');
+  if (mSlider) {
+    mSlider.addEventListener('input', function() {
+      setMST(parseInt(this.value));
+    });
+  }
+
+  /* Gender select */
+  const gSelect = el('gender-select');
+  if (gSelect) {
+    gSelect.addEventListener('change', function() {
+      ST.gender = this.value;
+      updateSubgroup();
+    });
+  }
+})();
+
+function setMST(v) {
+  ST.mst = v;
+  setText('mst-badge', 'MST ' + v);
+  el('mst-slider').value = v;
   document.querySelectorAll('.mst-swatch').forEach((s,i) =>
     s.classList.toggle('active', i+1===v));
-  updateSubgroupCtx();
+  updateSubgroup();
 }
 
-function onGenderChange(v) {
-  S.gender = v;
-  updateSubgroupCtx();
-}
-
-/* ═══════════════════════════════════════════
-   MST SWATCHES (built immediately, not deferred)
-   ═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   MST SWATCHES  —  built immediately on script parse
+   ════════════════════════════════════════════════════════════════ */
 (function buildSwatches() {
-  const wrap = $('mst-swatches'); if (!wrap) return;
+  const wrap = el('mst-swatches'); if (!wrap) return;
   for (let i=1; i<=10; i++) {
-    const btn      = document.createElement('button');
-    btn.type       = 'button';
-    btn.className  = 'mst-swatch' + (i===S.mst ? ' active' : '');
-    btn.style.background = MST_COLORS_D[i-1];
-    btn.title      = 'MST ' + i;
+    const btn = document.createElement('button');
+    btn.type      = 'button';
+    btn.className = 'mst-swatch' + (i===ST.mst?' active':'');
+    btn.style.background = MST_COLORS_V[i-1];
+    btn.title     = 'MST ' + i;
     btn.setAttribute('aria-label', 'Monk Skin Tone ' + i);
     const tone = i;
-    btn.addEventListener('click', function() {
-      $('mst-slider').value = tone;
-      onMstChange(tone);
-    });
+    btn.addEventListener('click', () => setMST(tone));
     wrap.appendChild(btn);
   }
 })();
 
-/* ═══════════════════════════════════════════
-   BOOT — runs after DOM is fully parsed
-   ═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   BOOT  —  runs after DOM is fully parsed
+   ════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
-  /* Sync threshold badge with slider's initial value */
-  setTxt('thresh-badge', OPTIMAL_T.toFixed(4));
+  /* Sync UI with initial state */
+  setText('thresh-badge', OPT_T.toFixed(4));
+  updateSubgroup();
 
-  /* Initialise subgroup context tiles */
-  updateSubgroupCtx();
-
-  /* Start ONNX initialisation asynchronously.
-     UI is fully interactive while model loads.
-     Any upload during init is queued and auto-runs when ready.
-     If ONNX fails (file:// protocol, network issue) the pixel-statistics
-     fallback activates automatically — no broken UI. */
+  /* Start ONNX loading.  UI is interactive immediately.
+     Any upload during load is queued and auto-runs when ready.
+     If ONNX fails (file:// protocol, offline) pixel-stats fallback kicks in. */
   initONNX();
 });
 </script>
