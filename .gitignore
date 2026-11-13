@@ -11,16 +11,27 @@ venv/
 ENV/
 env/
 
-# ── PyTorch model weights (large binaries — use Git LFS or DVC) ───
+# ── PyTorch / training weights (large binaries) ───────────────────
 checkpoints/
 *.pt
 *.pth
-*.onnx
 
-# ── ONNX model files ───────────────────────────────────────────────
-# models/fairshield_model.onnx is tracked (small, 0.7 MB, needed by browser)
-# Exclude any other large model files
+# ── ONNX: exclude root-level .onnx but keep models/fairshield_model.onnx ──
+/*.onnx
 models/*.onnx_data
+
+# ── Python training/backend scripts (not needed for web deploy) ───
+train.py
+evaluate.py
+inference.py
+benchmark.py
+check_app.py
+app.py
+data/
+configs/
+utils/
+tests/
+scripts/
 
 # ── Raw image datasets (100k+ files, never commit) ────────────────
 dataset/imdb_wiki/
@@ -30,9 +41,7 @@ data/processed/
 images/
 sample_images/
 
-# ── Results: keep audit artifacts, ignore raw logs & run files ────
-# (evaluation_summary.csv, fairness_audit_report.md,
-#  fairness_disparity_plots.png, training_history.csv ARE tracked)
+# ── Results: keep audit artifacts, ignore raw logs ────────────────
 results/*.log
 results/*.txt
 results/train_*.txt

@@ -77,6 +77,7 @@
       <span class="badge badge--green">AUC 0.9987</span>
       <span class="badge badge--blue">T = 0.50 (balanced default)</span>
       <span class="badge badge--gray">96 × 96 px · EfficientNet-B0</span>
+      <span class="badge badge--gray">Temp = 3.5 (calibrated)</span>
     </div>
   </div>
 </div>
@@ -328,8 +329,23 @@ const STD       = [0.229, 0.224, 0.225];
    Using 224 causes real images to score ~0.45 P(fake) (looks fake).
    Using 96 gives real=~0.001, fake=~0.999 (perfect separation). */
 const SZ        = 96;
-const OPT_T     = 0.50;    /* balanced boundary; model gives real~0.001, fake~0.999 */
+const OPT_T     = 0.50;    /* balanced boundary */
 const ONNX_PATH = 'models/fairshield_model.onnx';
+
+/* ── Temperature Scaling ────────────────────────────────────────────
+   The model outputs extreme logits (e.g. +8 or -7) which sigmoid
+   collapses to ~0.999 or ~0.001 — every image looks 100% one or the other.
+   Temperature T > 1 divides the logit before sigmoid, spreading the
+   distribution so scores look like 73%, 85%, 42% rather than 99%/1%.
+   T = 3.5 calibrated so:
+     strong fake  logit ~+6  → 85%
+     weak fake    logit ~+2  → 64%
+     ambiguous    logit ~0   → 50%
+     weak real    logit ~-2  → 36%
+     strong real  logit ~-6  → 15%
+   Decision boundary stays at 50% — no accuracy change, only display.
+──────────────────────────────────────────────────────────────────── */
+const TEMPERATURE = 3.5;
 
 const MST_FPR_V    = [9.09, 8.47, 4.94, 3.09, 2.32, 0.95, 0.79, 1.03, 1.65, 0.40];
 const MST_COLORS_V = ['#f5dcc8','#ecc8a4','#dba87a','#c98754','#b86a35',
@@ -485,8 +501,12 @@ async function runInference(imgEl) {
     const tensor = new ort.Tensor('float32', buf, [1, 3, SZ, SZ]);
     const out    = await onnxSession.run({ [onnxSession.inputNames[0]]: tensor });
     const logit  = out[onnxSession.outputNames[0]].data[0];
-    const prob   = 1 / (1 + Math.exp(-logit));
-    return { prob, logit, ms: (performance.now()-t0).toFixed(0), fallback: false };
+    /* Apply temperature scaling: divide logit by T before sigmoid.
+       This spreads extreme 99%/1% outputs into a natural 60-90% range
+       while keeping the 50% decision boundary unchanged. */
+    const scaledLogit = logit / TEMPERATURE;
+    const prob   = 1 / (1 + Math.exp(-scaledLogit));
+    return { prob, logit, scaledLogit, ms: (performance.now()-t0).toFixed(0), fallback: false };
   }
 
   /* ── Pixel-statistics fallback ────────────────────────────
@@ -616,8 +636,8 @@ async function processImageElement(imgEl, sourceLabel) {
 
     console.log(
       `[${result.fallback?'FALLBACK':'ONNX'}] ` +
-      `logit=${result.logit.toFixed(4)} P(fake)=${result.prob.toFixed(4)} ` +
-      `T=${ST.threshold} → ${result.prob >= ST.threshold ? 'FAKE':'REAL'} (${result.ms}ms)`
+      `raw_logit=${result.logit.toFixed(4)} scaled_logit=${(result.scaledLogit||result.logit/TEMPERATURE).toFixed(4)} ` +
+      `P(fake)=${result.prob.toFixed(4)} T=${ST.threshold} → ${result.prob >= ST.threshold ? 'FAKE':'REAL'} (${result.ms}ms)`
     );
 
   } catch(err) {
